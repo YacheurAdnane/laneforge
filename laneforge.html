@@ -1,0 +1,3056 @@
+<title>LaneForge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;450;500;600&display=swap">
+<style>
+:root{
+  --ground:#0B0E13; --panel:#12171F; --panel-2:#19212C; --panel-3:#212B39;
+  --rule:#26313F; --rule-soft:#1C242F;
+  --ink:#D4DDE7; --ink-dim:#8493A6; --ink-faint:#5B6879;
+  --accent:#FF7A2F; --accent-dim:#B85719; --accent-glow:rgba(255,122,47,.16);
+  --good:#3FBF7F; --mid:#E8B23A; --bad:#E4563F;
+  --warn-ink:#C7A472;
+  --warn-flash:rgba(232,178,58,.30);
+  --scrim:rgba(11,14,19,.90);
+  --scrim2:rgba(11,14,19,.78);
+  --sans:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --cond:"IBM Plex Sans Condensed","IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono","SFMono-Regular",Consolas,monospace;
+}
+:root[data-theme="light"]{
+  --ground:#F3F6FA; --panel:#FFFFFF; --panel-2:#F1F5F9; --panel-3:#E3EAF2;
+  --rule:#CFD9E4; --rule-soft:#E5EBF2;
+  --ink:#18212C; --ink-dim:#4B5A6C; --ink-faint:#78869A;
+  --accent:#C85A0D; --accent-dim:#9A4407; --accent-glow:rgba(200,90,13,.13);
+  --good:#12854F; --mid:#A5720C; --bad:#B5342A;
+  --warn-ink:#7A5A12; --warn-flash:rgba(165,114,12,.22);
+  --scrim:rgba(255,255,255,.92); --scrim2:rgba(255,255,255,.84);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+#app{position:fixed;inset:0;display:flex}
+#rail{width:334px;flex:0 0 334px;height:100%;background:var(--panel);border-right:1px solid var(--rule);display:flex;flex-direction:column;overflow:hidden}
+#railScroll{overflow-y:auto;overflow-x:hidden;flex:1;scrollbar-width:thin;scrollbar-color:var(--rule) transparent}
+#railScroll::-webkit-scrollbar{width:9px}
+#railScroll::-webkit-scrollbar-thumb{background:var(--rule);border-radius:5px}
+#stage{flex:1;position:relative;min-width:0;background:var(--ground)}
+canvas#view{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+canvas#view.routing{cursor:default}
+canvas#view.picking,canvas#view.drawing{cursor:crosshair}
+canvas#view.panmode{cursor:move}
+canvas#view.dragging{cursor:grabbing}
+
+.head{padding:17px 18px 13px;border-bottom:1px solid var(--rule);display:flex;flex-direction:column;gap:3px}
+.head h1{margin:0;font-family:var(--cond);font-weight:600;font-size:19px;letter-spacing:.15em;text-transform:uppercase}
+.head h1 em{font-style:normal;color:var(--accent)}
+.head h1 #btnTheme{
+  float:right;background:transparent;border:1px solid var(--rule);border-radius:2px;
+  color:var(--ink-faint);cursor:pointer;font-size:13px;line-height:1;padding:2px 7px;
+  transition:color .12s,border-color .12s;
+}
+.head h1 #btnTheme:hover{color:var(--accent);border-color:var(--accent-dim)}
+.head p{margin:0;font-size:11.5px;color:var(--ink-faint);line-height:1.45}
+
+.tabs{display:flex;border-bottom:1px solid var(--rule);background:var(--panel-2)}
+.tabs button{
+  flex:1;background:transparent;border:0;border-bottom:2px solid transparent;padding:10px 0 9px;
+  font-family:var(--cond);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-faint);cursor:pointer;transition:color .12s,border-color .12s;
+}
+.tabs button:hover{color:var(--ink-dim)}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+.pane{display:none;flex-direction:column}
+.pane.on{display:flex}
+
+section{border-bottom:1px solid var(--rule-soft);padding:15px 18px 17px;display:flex;flex-direction:column;gap:11px}
+.legend{display:flex;align-items:baseline;gap:8px;font-family:var(--cond);font-weight:600;font-size:10.5px;letter-spacing:.19em;text-transform:uppercase;color:var(--ink-faint)}
+.legend .idx{color:var(--accent-dim);font-family:var(--mono);letter-spacing:0}
+
+.slot{display:block;border:1px dashed var(--rule);border-radius:3px;padding:11px 12px;cursor:pointer;background:var(--panel-2);transition:border-color .14s,background .14s}
+.slot:hover{border-color:var(--ink-faint);background:var(--panel-3)}
+.slot.filled{border-style:solid}
+.slot.filled.ref{border-color:#38536E}
+.slot.filled.mov{border-color:var(--accent-dim)}
+.slot.over{border-color:var(--accent);background:var(--accent-glow)}
+.slot input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.slot .row1{display:flex;align-items:center;gap:8px}
+.slot .dot{width:7px;height:7px;border-radius:50%;flex:0 0 7px;background:var(--rule)}
+.slot.filled.ref .dot{background:#7FA8CC}
+.slot.filled.mov .dot{background:var(--accent)}
+.slot .nm{font-weight:500;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot .role{margin-left:auto;font-family:var(--cond);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);white-space:nowrap}
+.slot .meta{margin-top:5px;font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);line-height:1.6;white-space:pre-line}
+
+.readout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1px;background:var(--rule-soft);border:1px solid var(--rule);border-radius:3px;overflow:hidden}
+.cell{background:var(--panel-2);padding:9px 11px 10px;display:flex;flex-direction:column;gap:2px}
+.cell.wide{grid-column:1/-1}
+.cell label{font-family:var(--cond);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+.cell .val{display:flex;align-items:baseline;gap:5px;flex-wrap:nowrap}
+.cell input{flex:1 1 0;min-width:0;width:100%;background:transparent;border:0;padding:0;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:21px;font-weight:500;color:var(--accent);letter-spacing:-.02em}
+.cell input::-webkit-outer-spin-button,.cell input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.cell input[type=number]{-moz-appearance:textfield}
+.cell .unit{font-family:var(--mono);font-size:11px;color:var(--ink-faint);flex:0 0 auto;white-space:nowrap}
+.cell.rot input{font-size:15px;color:var(--ink)}
+
+.pad{display:flex;gap:13px;align-items:center}
+.dpad{display:grid;grid-template-columns:repeat(3,30px);grid-template-rows:repeat(3,30px);gap:3px;flex:0 0 auto}
+.dpad button{background:var(--panel-2);border:1px solid var(--rule);border-radius:2px;color:var(--ink-dim);cursor:pointer;display:grid;place-items:center;padding:0;transition:background .1s,color .1s,border-color .1s}
+.dpad button:hover{background:var(--panel-3);color:var(--accent);border-color:var(--accent-dim)}
+.dpad .spacer{visibility:hidden}
+.dpad svg{width:12px;height:12px;display:block}
+.padside{display:flex;flex-direction:column;gap:7px;flex:1;min-width:0}
+.steps{display:flex;border:1px solid var(--rule);border-radius:2px;overflow:hidden}
+.steps button{flex:1;background:var(--panel-2);border:0;border-right:1px solid var(--rule);padding:6px 0;font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);cursor:pointer;transition:background .12s,color .12s}
+.steps button:last-child{border-right:0}
+.steps button:hover{background:var(--panel-3);color:var(--ink)}
+.steps button.on{background:var(--accent);color:#140A03;font-weight:600}
+.hint{font-size:10.5px;color:var(--ink-faint);line-height:1.5}
+.hint kbd{font-family:var(--mono);font-size:10px;background:var(--panel-3);border:1px solid var(--rule);border-radius:2px;padding:0 4px;color:var(--ink-dim)}
+
+.btn{border:1px solid var(--rule);background:var(--panel-2);color:var(--ink-dim);border-radius:2px;padding:7px 10px;cursor:pointer;text-align:center;font-size:12px;transition:background .12s,color .12s,border-color .12s}
+.btn:hover:not(:disabled){background:var(--panel-3);color:var(--ink);border-color:var(--ink-faint)}
+.btn:disabled{opacity:.38;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#140A03;font-weight:600;padding:10px;font-size:12.5px}
+.btn.primary:hover:not(:disabled){background:#FF8C4A;border-color:#FF8C4A}
+.btnrow{display:flex;gap:7px}
+.btnrow .btn{flex:1}
+
+.field{display:flex;align-items:center;gap:10px}
+.field > span{font-family:var(--cond);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);flex:0 0 84px}
+.field input[type=range]{flex:1;-webkit-appearance:none;appearance:none;background:transparent;height:16px;min-width:0}
+.field input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--rule);border-radius:1px}
+.field input[type=range]::-moz-range-track{height:2px;background:var(--rule);border-radius:1px}
+.field input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--ink-dim);margin-top:-4.5px;cursor:pointer}
+.field input[type=range]:hover::-webkit-slider-thumb{background:var(--accent)}
+.field input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;background:var(--ink-dim);cursor:pointer}
+.field .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:10.5px;color:var(--ink-dim);flex:0 0 52px;text-align:right;white-space:nowrap;text-transform:none;letter-spacing:0}
+
+.note{font-size:11px;line-height:1.55;color:var(--ink-faint);border-left:2px solid var(--rule);padding-left:9px}
+.note b{color:var(--ink-dim);font-weight:500}
+.note.warn{border-left-color:var(--mid);color:var(--warn-ink)}
+@keyframes warnflash{0%,100%{background:transparent}45%{background:var(--warn-flash)}}
+#collapseWarn.flash{animation:warnflash .55s ease-in-out 4}
+@media (prefers-reduced-motion:reduce){#collapseWarn.flash{animation:none;background:var(--warn-flash)}}
+.note.ok{border-left-color:var(--good);color:#7FC3A5}
+.chip{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;font-family:var(--cond);font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;padding:3px 7px;border-radius:2px;background:var(--panel-3);color:var(--ink-faint)}
+.chip.live{background:rgba(63,191,127,.13);color:var(--good)}
+.chip.demo{background:rgba(232,178,58,.13);color:var(--mid)}
+
+#prog{display:none;flex-direction:column;gap:6px}
+#prog.on{display:flex}
+.bar{height:2px;background:var(--rule);border-radius:1px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .18s}
+#progTxt{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim)}
+
+/* ---- routing health ---- */
+.health{display:flex;flex-direction:column;gap:7px}
+.hrow{display:flex;align-items:center;gap:9px;cursor:pointer;padding:2px 0}
+.hrow .sw{width:9px;height:9px;border-radius:2px;flex:0 0 9px}
+.hrow .lbl{font-size:11.5px;color:var(--ink-dim);flex:0 0 108px}
+.hrow .track{flex:1;height:5px;background:var(--panel-3);border-radius:3px;overflow:hidden;min-width:0}
+.hrow .track i{display:block;height:100%;border-radius:3px}
+.hrow .n{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--ink);flex:0 0 38px;text-align:right}
+.hrow.off{opacity:.4}
+
+/* ---- candidate list ---- */
+.cands{display:flex;flex-direction:column;border:1px solid var(--rule);border-radius:3px;max-height:264px;overflow-y:auto;background:var(--panel-2);scrollbar-width:thin}
+.cands::-webkit-scrollbar{width:8px}
+.cands::-webkit-scrollbar-thumb{background:var(--rule);border-radius:4px}
+.cand{display:flex;align-items:center;gap:9px;padding:7px 10px;border-bottom:1px solid var(--rule-soft);cursor:pointer;transition:background .1s}
+.cand:last-child{border-bottom:0}
+.cand:hover{background:var(--panel-3)}
+.cand.sel{background:var(--accent-glow)}
+.cand input{accent-color:var(--good);flex:0 0 auto;cursor:pointer;margin:0}
+.cand .ids{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cand .gap{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:10.5px;flex:0 0 auto}
+.cand .gap.near{color:var(--good)}
+.cand .gap.mid{color:var(--mid)}
+.cand .gap.far{color:var(--bad)}
+.empty{padding:16px 12px;text-align:center;font-size:11px;color:var(--ink-faint)}
+
+/* ---- segmented filter ---- */
+.segs{display:flex;border:1px solid var(--rule);border-radius:2px;overflow:hidden}
+.segs button{flex:1;min-width:0;background:var(--panel-2);border:0;border-right:1px solid var(--rule);padding:6px 0;font-size:10.5px;color:var(--ink-faint);cursor:pointer;transition:background .12s,color .12s}
+.segs button:last-child{border-right:0}
+.segs button:hover{background:var(--panel-3);color:var(--ink)}
+.segs button.on{background:var(--panel-3);color:var(--ink)}
+
+/* ---- link editor ---- */
+#inspect{display:none;flex-direction:column;gap:11px}
+#inspect.on{display:flex}
+.linkgrp{display:flex;flex-direction:column;gap:6px}
+.linkhdr{display:flex;align-items:baseline;gap:7px;font-family:var(--cond);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint)}
+.linkhdr b{font-family:var(--mono);letter-spacing:0;color:var(--ink-dim);font-weight:500}
+.linkhdr .dir{margin-left:auto;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:9.5px;opacity:.7}
+.chips{display:flex;flex-wrap:wrap;gap:5px;min-height:2px}
+.lchip{display:inline-flex;align-items:center;gap:6px;background:var(--panel-3);border:1px solid var(--rule);border-radius:2px;padding:3px 4px 3px 8px;font-family:var(--mono);font-size:10.5px;color:var(--ink-dim)}
+.lchip.added{border-color:var(--good);color:var(--good)}
+.lchip .go{cursor:pointer}
+.lchip .go:hover{color:var(--ink);text-decoration:underline}
+.lchip .x{border:0;background:transparent;color:var(--ink-faint);cursor:pointer;padding:0 3px;line-height:1;font-size:13px;border-radius:2px}
+.lchip .x:hover{color:var(--bad);background:rgba(228,86,63,.14)}
+.chips .none{font-family:var(--mono);font-size:10.5px;color:var(--bad);opacity:.75}
+.addrow{display:flex;gap:5px}
+.addid{
+  flex:1;min-width:0;background:var(--panel-2);border:1px solid var(--rule);border-radius:2px;
+  padding:6px 8px;font-family:var(--mono);font-size:11px;color:var(--ink);
+}
+.addid::placeholder{color:var(--ink-faint);font-family:var(--sans)}
+.addid:focus{border-color:var(--accent);outline:none}
+.addid.bad{border-color:var(--bad)}
+.addbtn{flex:0 0 auto;padding:6px 11px;font-size:11px;white-space:nowrap}
+.gapread{font-family:var(--mono);font-size:10px;color:var(--ink-faint);min-height:14px;letter-spacing:0}
+.gapread.in{color:var(--good)}
+.gapread.out{color:var(--mid)}
+.flipbtn{flex:1;padding:8px;font-size:11.5px}
+.flipbtn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-glow)}
+.flipbtn.danger:hover:not(:disabled){border-color:var(--bad);color:var(--bad)}
+.hist{display:flex;gap:5px}
+.hist .btn{flex:1;padding:5px 0;font-size:11px}
+.kv{display:grid;grid-template-columns:78px minmax(0,1fr);gap:3px 10px;font-size:11.5px}
+.kv dt{font-family:var(--cond);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-faint);align-self:center}
+.kv dd{margin:0;font-family:var(--mono);font-size:11px;color:var(--ink-dim);overflow-wrap:anywhere}
+
+/* ---- pinned export footer ---- */
+#foot{border-top:1px solid var(--rule);background:var(--panel-2);padding:13px 18px 15px;display:flex;flex-direction:column;gap:9px}
+.chk{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--ink-faint);cursor:pointer;line-height:1.45}
+.chk input{accent-color:var(--accent);margin:2px 0 0;flex:0 0 auto;cursor:pointer}
+#pending{font-family:var(--mono);font-size:10.5px;color:var(--ink-dim);display:flex;flex-wrap:wrap;gap:4px 12px}
+#pending b{color:var(--accent);font-weight:500}
+
+#strip{position:absolute;left:0;right:0;bottom:0;height:29px;display:flex;align-items:center;gap:16px;padding:0 14px;background:var(--scrim);border-top:1px solid var(--rule);font-family:var(--mono);font-size:10.5px;color:var(--ink-faint);font-variant-numeric:tabular-nums;pointer-events:none;backdrop-filter:blur(6px)}
+#strip .k{opacity:.65}
+#strip .v{color:var(--ink-dim)}
+#strip .sp{margin-left:auto}
+#scalebar{display:flex;align-items:center;gap:7px}
+#scaleLine{height:5px;border:1px solid var(--ink-faint);border-top:0;width:70px}
+
+#keyOverlay{position:absolute;top:12px;right:14px;display:flex;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:none}
+.keyitem{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--ink-dim);background:var(--scrim2);border:1px solid var(--rule-soft);border-radius:2px;padding:4px 8px;backdrop-filter:blur(6px)}
+.keyitem .sw{width:14px;height:2px;border-radius:1px}
+#pickBar{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  display:none;align-items:center;gap:12px;
+  padding:9px 14px;border-radius:3px;
+  background:var(--scrim);border:1px solid var(--accent);
+  box-shadow:0 6px 22px rgba(0,0,0,.5);backdrop-filter:blur(8px);
+  font-size:12.5px;color:var(--ink);white-space:nowrap;z-index:5;
+}
+#pickBar.on{display:flex}
+#pickBar .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:0 0 7px;animation:pb 1.1s ease-in-out infinite}
+@keyframes pb{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){#pickBar .pulse{animation:none}}
+#pickBar b{color:var(--accent);font-weight:600;font-family:var(--mono)}
+#pickBar .esc{color:var(--ink-faint);font-size:11px}
+#pickBar kbd{font-family:var(--mono);font-size:10.5px;background:var(--panel-3);border:1px solid var(--rule);border-radius:2px;padding:1px 5px;color:var(--ink-dim)}
+.keyitem .sw.cloud{height:8px;width:14px;border-radius:1px;background:linear-gradient(90deg,#2E4A6B,#6B8FB0,#DCE9F4)}
+</style>
+
+<div id="app">
+  <aside id="rail">
+    <div class="head">
+      <h1>Lane<em>·</em>Forge<button id="btnTheme" title="Light / dark">◐</button></h1>
+      <p>Register a lanelet2 map to its point cloud, then repair the routing graph before export.</p>
+    </div>
+
+    <div class="tabs">
+      <button id="tabAlign" class="on">Align</button>
+      <button id="tabConnect">Routing</button>
+    </div>
+
+    <div id="railScroll">
+
+      <!-- ================= ALIGN ================= -->
+      <div class="pane on" id="paneAlign">
+        <section>
+          <div class="legend"><span class="idx">01</span><span>Sources</span></div>
+          <label class="slot filled ref" id="slotPcd">
+            <input type="file" id="filePcd" accept=".pcd">
+            <div class="row1"><span class="dot"></span><span class="nm" id="pcdName">Demo scene</span><span class="role">Fixed</span></div>
+            <div class="meta" id="pcdMeta">Click to load a .pcd</div>
+          </label>
+          <label class="slot filled mov" id="slotOsm">
+            <input type="file" id="fileOsm" accept=".osm,.xml">
+            <div class="row1"><span class="dot"></span><span class="nm" id="osmName">Demo lanelets</span><span class="role">Movable</span></div>
+            <div class="meta" id="osmMeta">Click to load a lanelet2 .osm</div>
+          </label>
+          <div id="prog"><div id="progTxt">Reading…</div><div class="bar"><i id="progBar"></i></div></div>
+          <div class="chip demo" id="modeChip">Demo scene — load your own files</div>
+        </section>
+
+        <section>
+          <div class="legend"><span class="idx">02</span><span>Offset applied to .osm</span></div>
+          <div class="readout">
+            <div class="cell"><label for="inDx">East · ΔX</label><div class="val"><input type="number" id="inDx" step="0.01" value="0.00"><span class="unit">m</span></div></div>
+            <div class="cell"><label for="inDy">North · ΔY</label><div class="val"><input type="number" id="inDy" step="0.01" value="0.00"><span class="unit">m</span></div></div>
+            <div class="cell rot wide"><label for="inRot">Yaw about map centre <span id="pivotTxt" style="letter-spacing:0;text-transform:none;font-family:var(--mono)"></span></label><div class="val"><input type="number" id="inRot" step="0.01" value="0.00"><span class="unit">deg (ccw)</span></div></div>
+          </div>
+          <div class="pad">
+            <div class="dpad">
+              <span class="spacer"></span>
+              <button id="nUp" title="North (Arrow Up)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 10V2M2.5 5.5L6 2l3.5 3.5"/></svg></button>
+              <span class="spacer"></span>
+              <button id="nLeft" title="West (Arrow Left)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 6H2M5.5 2.5L2 6l3.5 3.5"/></svg></button>
+              <button id="nZero" title="Reset offset"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="6" cy="6" r="3.2"/><path d="M6 .8v1.6M6 9.6v1.6M.8 6h1.6M9.6 6h1.6"/></svg></button>
+              <button id="nRight" title="East (Arrow Right)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 6h8M6.5 2.5L10 6l-3.5 3.5"/></svg></button>
+              <span class="spacer"></span>
+              <button id="nDown" title="South (Arrow Down)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 2v8M2.5 6.5L6 10l3.5-3.5"/></svg></button>
+              <span class="spacer"></span>
+            </div>
+            <div class="padside">
+              <div class="steps" id="steps">
+                <button data-s="0.05">0.05</button><button data-s="0.25">0.25</button>
+                <button data-s="1" class="on">1 m</button><button data-s="5">5 m</button>
+              </div>
+              <div class="hint">Drag in the view to move the map.<br><kbd>Space</kbd>/middle-drag pans · <kbd>⇧</kbd>+arrow = ×10</div>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="legend"><span class="idx">03</span><span>View</span></div>
+          <div class="field"><span>Cloud</span><input type="range" id="rgAlpha" min="10" max="100" value="100"><span class="num" id="vAlpha">100</span></div>
+          <div class="field"><span>Brightness</span><input type="range" id="rgBright" min="40" max="220" value="100"><span class="num" id="vBright">1.0</span></div>
+          <div class="field"><span>Point size</span><input type="range" id="rgPt" min="1" max="4" value="1"><span class="num" id="vPt">1</span></div>
+          <div class="field"><span>Lane width</span><input type="range" id="rgLw" min="1" max="6" value="2"><span class="num" id="vLw">2</span></div>
+          <div class="btnrow">
+            <button class="btn" id="fitAll">Fit all</button>
+            <button class="btn" id="fitOsm">Fit map</button>
+            <button class="btn" id="zTop">1 m/px</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- ================= ROUTING ================= -->
+      <div class="pane" id="paneConnect">
+        <section>
+          <div class="legend"><span class="idx">04</span><span>Routing health</span></div>
+          <div class="health">
+            <div class="hrow" id="hGood"><span class="sw" style="background:var(--good)"></span><span class="lbl">next + previous</span><span class="track"><i id="bGood" style="background:var(--good)"></i></span><span class="n" id="nGood">0</span></div>
+            <div class="hrow" id="hMid"><span class="sw" style="background:var(--mid)"></span><span class="lbl">one side only</span><span class="track"><i id="bMid" style="background:var(--mid)"></i></span><span class="n" id="nMid">0</span></div>
+            <div class="hrow" id="hBad"><span class="sw" style="background:var(--bad)"></span><span class="lbl">isolated</span><span class="track"><i id="bBad" style="background:var(--bad)"></i></span><span class="n" id="nBad">0</span></div>
+          </div>
+          <div class="note warn" id="collapseWarn" style="display:none"></div>
+          <div class="note" id="healthNote">Two lanelets are linked when they share the same boundary node IDs. Click a band to isolate it in the view.</div>
+        </section>
+
+        <section>
+          <div class="legend"><span class="idx">05</span><span>Repair candidates</span></div>
+          <div class="field"><span>Gate ≤</span><input type="range" id="rgTol" min="1" max="50" value="50"><span class="num" id="vTol">0.50 m</span></div>
+          <div class="btnrow">
+            <button class="btn flipbtn" id="btnDraw">&#9998; New lanelet</button>
+            <input class="addid" id="nwWidth" value="3.5" title="width in metres" style="flex:0 0 62px;text-align:center">
+          </div>
+          <div class="addrow">
+            <input class="addid" id="nwSpeed" placeholder="speed" autocomplete="off" value="50">
+            <input class="addid" id="nwSub" placeholder="subtype" autocomplete="off" value="road">
+          </div>
+          <div class="note" id="drawHint" style="display:none"></div>
+          <div class="segs" id="candFilter">
+            <button data-f="gaps" class="on">Missing a link</button>
+            <button data-f="all">All in gate</button>
+            <button data-f="flip">Reversed?</button>
+          </div>
+          <div class="cands" id="candList"><div class="empty">Load a lanelet2 .osm to scan for breaks.</div></div>
+          <div class="btnrow">
+            <button class="btn" id="acceptAll">Link all listed</button>
+            <button class="btn" id="clearAll">Undo all</button>
+          </div>
+          <div class="note">A link merges the two junction points into one shared pair of node IDs, so it is added in <b>both</b> directions at once and nothing the file already had is lost. This gate only limits what the automatic scan proposes — both boundary ends must fall inside it. To link anything else, pick the lanelet and type an id under <b>Links</b>.</div>
+        </section>
+
+        <section id="inspectWrap">
+          <div class="legend"><span class="idx">06</span><span>Links</span></div>
+          <div class="note" id="inspectHint">Click any lanelet in the view to read and edit its links.</div>
+          <div id="inspect">
+            <dl class="kv">
+              <dt>id</dt><dd id="iId">—</dd>
+              <dt>subtype</dt><dd id="iSub">—</dd>
+              <dt>speed</dt><dd id="iSpeed">—</dd>
+              <dt>bounds</dt><dd id="iBounds">—</dd>
+            </dl>
+            <div class="btnrow">
+              <button class="btn flipbtn" id="btnFlip">&#8644; Reverse</button>
+              <button class="btn flipbtn" id="btnShape">&#9671; Edit shape</button>
+              <button class="btn flipbtn" id="btnSwap">&#8651; Swap L/R</button>
+              <button class="btn flipbtn danger" id="btnDelete">&#128465; Delete</button>
+            </div>
+            <div class="linkgrp">
+              <div class="linkhdr"><span>next</span><b id="nNext">0</b><span class="dir">from this end</span></div>
+              <div class="chips" id="chipsNext"></div>
+              <div class="addrow">
+                <input class="addid" id="addNextId" list="dlNext" placeholder="type or pick a lanelet id" autocomplete="off" spellcheck="false">
+                <button class="btn addbtn" id="addNextGo">+ next</button>
+              </div>
+              <datalist id="dlNext"></datalist>
+              <div class="gapread" id="gapNext"></div>
+            </div>
+            <div class="linkgrp">
+              <div class="linkhdr"><span>previous</span><b id="nPrev">0</b><span class="dir">into this start</span></div>
+              <div class="chips" id="chipsPrev"></div>
+              <div class="addrow">
+                <input class="addid" id="addPrevId" list="dlPrev" placeholder="type or pick a lanelet id" autocomplete="off" spellcheck="false">
+                <button class="btn addbtn" id="addPrevGo">+ prev</button>
+              </div>
+              <datalist id="dlPrev"></datalist>
+              <div class="gapread" id="gapPrev"></div>
+            </div>
+            <div class="note" id="linkMsg" style="display:none"></div>
+          </div>
+        </section>
+
+        <section>
+          <div class="legend"><span class="idx">07</span><span>Speed limit</span></div>
+          <div id="selInfo" class="note">Nothing selected. Click a lanelet, shift-click to add more, or drag a box with the left button to take a whole zone.</div>
+          <div class="addrow">
+            <input class="addid" id="spdVal" placeholder="km/h" inputmode="decimal" autocomplete="off">
+            <button class="btn addbtn" id="spdApply">Apply</button>
+          </div>
+          <div class="segs" id="spdUnit">
+            <button data-u="kmh" class="on">km/h</button>
+            <button data-u="mph">mph</button>
+          </div>
+          <div class="btnrow">
+            <button class="btn" id="selAll">Select shown</button>
+            <button class="btn" id="selClear">Clear</button>
+          </div>
+          <div class="note">Writes <code>speed_limit</code> on every selected lanelet relation. Empty the box and press Apply to strip the tag. mph is an entry convenience — the file is always written in <b>km/h</b>, as a bare number, which is how lanelet2 reads an untagged value and how the rest of this map is already written.</div>
+        </section>
+      </div>
+    </div>
+
+    <div id="foot">
+      <div id="pending"><span>Δ <b id="pDelta">0.00, 0.00 m</b></span><span>links <b id="pLinks">0</b></span></div>
+      <div class="hist">
+        <button class="btn" id="btnUndo" disabled title="Ctrl+Z">↶ Undo</button>
+        <button class="btn" id="btnRedo" disabled title="Ctrl+Shift+Z">↷ Redo</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="chkTags"><span>Also write <code>next</code>/<code>previous</code> tags on each lanelet relation (informational — lanelet2 derives routing from shared nodes).</span></label>
+      <button class="btn primary" id="btnExport" disabled>Export corrected .osm</button>
+      <div class="note" id="fitNote">Load a lanelet2 .osm to enable export.</div>
+    </div>
+  </aside>
+
+  <div id="stage">
+    <canvas id="view"></canvas>
+    <div id="pickBar"><span class="pulse"></span><span id="pickTxt"></span><span class="esc"><kbd>Esc</kbd> to cancel</span></div>
+    <div id="keyOverlay" data-mode="align">
+      <div class="keyitem"><span class="sw cloud"></span><span>Point cloud — height</span></div>
+      <div class="keyitem" id="keyLane"><span class="sw" style="background:#FF7A2F"></span><span>Lanelet boundaries</span></div>
+    </div>
+    <div id="strip">
+      <span><span class="k">cursor</span> <span class="v" id="stCur">—</span></span>
+      <span><span class="k">Δ</span> <span class="v" id="stOff">0.00, 0.00 m</span></span>
+      <span><span class="k">pts</span> <span class="v" id="stPts">—</span></span>
+      <span><span class="k">lanelets</span> <span class="v" id="stLL">—</span></span>
+      <span><span class="k">sel</span> <span class="v" id="stSel">—</span></span>
+      <span class="sp"></span>
+      <span id="scalebar"><span class="v" id="scaleTxt">—</span><span id="scaleLine"></span></span>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ===================================================== state */
+const S = {
+  pcd:null, osm:null,
+  view:{cx:0, cy:0, scale:4},
+  off:{dx:0, dy:0, rot:0},
+  step:1, alpha:1, bright:1, ptSize:1, laneW:2,
+  mode:"align",
+  tol:0.50,
+  unit:"kmh",              // display + entry unit for speed limits
+  filter:null,             // null | 0 (good) | 1 (mid) | 2 (bad)
+  candFilter:"gaps",       // "gaps" | "all"
+  picked:null,
+  moves:new Map(),         // node id -> [x,y] dragged to reshape a lanelet
+  movedEver:new Set(),     // every node a drag has ever touched, so undo can put it back
+  shape:false,             // vertex handles on for the selected lanelet
+  vdrag:null,              // handle being dragged
+  sel:new Set(),           // multi-selection for zone edits
+  marquee:null,            // rubber band while box-selecting
+  speeds:new Map(),        // lanelet id -> new speed limit
+  picking:null,            // "next" | "prev" while pointing at a lanelet
+  pickAnchor:null, hover:null,
+  /* Routing edits. lanelet2 has no next/previous field: two lanelets are
+     joined when they share the same pair of boundary node IDs. So a link is
+     a MERGE of two junction points, and a cut is a SPLIT of one. Both are
+     stored as intent and replayed from the untouched file on every change,
+     which keeps undo exact. */
+  flips:new Set(),         // lanelet ids whose travel direction is reversed
+  swaps:new Set(),         // lanelet ids whose left/right boundaries are mislabelled
+  deleted:new Set(),       // lanelet ids removed from the map
+  drawing:false,           // laying down a new centreline
+  created:[],              // lanelets drawn in this session
+  draft:[],                // centreline being drawn
+  links:[],                // [{a,b}] merges the user made, a -> b
+  cuts:[],                 // [{ll, side:"start"|"end"}] detachments
+  edit:{first:new Map(), last:new Map(), newNodes:[]},
+  hist:[], future:[],      // undo / redo snapshots of links + cuts + offset
+};
+const dpr = Math.min(window.devicePixelRatio || 1, 2);
+const D2R = Math.PI/180;
+/* literal defaults: THEMES is declared further down, and applyTheme() fills
+   these in the moment a theme is chosen at start-up */
+let COL = {good:"#3FBF7F", mid:"#E8B23A", bad:"#E4563F", bound:"#FF7A2F", boundDim:"#4C5B6E"};
+
+/* ===================================================== dom */
+const $ = id => document.getElementById(id);
+const cvs = $("view"), ctx = cvs.getContext("2d", {alpha:false});
+const pcdLayer = document.createElement("canvas"), pcdCtx = pcdLayer.getContext("2d", {alpha:false});
+const osmLayer = document.createElement("canvas"), osmCtx = osmLayer.getContext("2d");
+const PAD = 420;
+let W=0, H=0, pcdDirty=true, osmDirty=true, needDraw=true;
+let baked = {cx:0, cy:0, scale:0, rot:0, dx:0, dy:0};
+
+/* ===================================================== colour ramp */
+/* The canvas paints itself, so it needs its own copy of the palette. */
+const THEMES = {
+  dark: {
+    ground:[11,14,19],
+    ramp:[[0,[46,74,107]],[0.32,[78,115,150]],[0.62,[147,180,206]],[1,[230,241,249]]],
+    grid:"rgba(120,140,165,.075)", notch:"#0B0E13", pick:"#FFFFFF",
+    handleFill:"#0B0E13", handleStroke:"#FFFFFF", moved:"#5BC8E8",
+    good:"#3FBF7F", mid:"#E8B23A", bad:"#E4563F", bound:"#FF7A2F", boundDim:"#4C5B6E",
+  },
+  light: {
+    ground:[243,246,250],
+    ramp:[[0,[168,190,212]],[0.32,[108,142,178]],[0.62,[58,96,138]],[1,[22,48,84]]],
+    grid:"rgba(40,62,92,.10)", notch:"#F3F6FA", pick:"#121A24",
+    handleFill:"#FFFFFF", handleStroke:"#121A24", moved:"#0E7FA8",
+    good:"#12854F", mid:"#A5720C", bad:"#B5342A", bound:"#C85A0D", boundDim:"#93A2B4",
+  },
+};
+let TH = THEMES.dark;
+let RAMP = TH.ramp;
+let GROUND = TH.ground;
+const LUT = new Uint32Array(256);
+function buildLUT(){
+  for(let i=0;i<256;i++){
+    const t = i/255;
+    let a=RAMP[0], b=RAMP[RAMP.length-1];
+    for(let k=0;k<RAMP.length-1;k++){ if(t>=RAMP[k][0] && t<=RAMP[k+1][0]){ a=RAMP[k]; b=RAMP[k+1]; break; } }
+    const f = b[0]===a[0] ? 0 : (t-a[0])/(b[0]-a[0]);
+    let r=a[1][0]+(b[1][0]-a[1][0])*f, g=a[1][1]+(b[1][1]-a[1][1])*f, bl=a[1][2]+(b[1][2]-a[1][2])*f;
+    r=Math.min(255,r*S.bright); g=Math.min(255,g*S.bright); bl=Math.min(255,bl*S.bright);
+    r=GROUND[0]+(r-GROUND[0])*S.alpha; g=GROUND[1]+(g-GROUND[1])*S.alpha; bl=GROUND[2]+(bl-GROUND[2])*S.alpha;
+    LUT[i] = (255<<24)|(bl<<16)|(g<<8)|r;
+  }
+}
+let BG_U32 = (255<<24)|(GROUND[2]<<16)|(GROUND[1]<<8)|GROUND[0];
+
+/* ===================================================== theme */
+function applyTheme(name){
+  TH = THEMES[name] || THEMES.dark;
+  RAMP = TH.ramp; GROUND = TH.ground;
+  BG_U32 = (255<<24)|(GROUND[2]<<16)|(GROUND[1]<<8)|GROUND[0];
+  COL = {good:TH.good, mid:TH.mid, bad:TH.bad, bound:TH.bound, boundDim:TH.boundDim};
+  document.documentElement.setAttribute("data-theme", name);
+  const b = document.getElementById("btnTheme");
+  if(b){ b.textContent = name === "light" ? "\u25D1" : "\u25D0"; b.title = name === "light" ? "Switch to dark" : "Switch to light"; }
+  const k = document.getElementById("keyLane");
+  if(k && S.mode !== "connect") k.innerHTML = '<span class="sw" style="background:'+TH.bound+'"></span><span>Lanelet boundaries</span>';
+  buildLUT();
+  invalidateAll();
+  try{ localStorage.setItem("laneforge.theme", name); }catch(e){}
+}
+function initTheme(){
+  let t = null;
+  try{ t = localStorage.getItem("laneforge.theme"); }catch(e){}
+  if(!t) t = window.matchMedia && matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  applyTheme(t);
+}
+document.getElementById("btnTheme").onclick = () =>
+  applyTheme(document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light");
+
+/* ===================================================== layout */
+function resize(){
+  const r = cvs.getBoundingClientRect();
+  W = Math.max(2, Math.round(r.width*dpr));
+  H = Math.max(2, Math.round(r.height*dpr));
+  cvs.width=W; cvs.height=H;
+  pcdLayer.width=W; pcdLayer.height=H;
+  osmLayer.width=W+2*PAD; osmLayer.height=H+2*PAD;
+  pcdDirty=osmDirty=needDraw=true;
+  if(pendingFit && fitBox(pendingFit.b, pendingFit.padFrac)) pendingFit = null;
+}
+new ResizeObserver(resize).observe($("stage"));
+
+const wx2px = wx => (wx - S.view.cx)*S.view.scale*dpr + W/2;
+const wy2py = wy => H/2 - (wy - S.view.cy)*S.view.scale*dpr;
+const px2wx = px => (px - W/2)/(S.view.scale*dpr) + S.view.cx;
+const py2wy = py => (H/2 - py)/(S.view.scale*dpr) + S.view.cy;
+
+/* map-local coords -> world coords, with the current offset applied */
+function xform(x, y){
+  const o = S.osm, th = S.off.rot*D2R, cs = Math.cos(th), sn = Math.sin(th);
+  const rx = x-o.pivot[0], ry = y-o.pivot[1];
+  return [cs*rx - sn*ry + o.pivot[0] + S.off.dx, sn*rx + cs*ry + o.pivot[1] + S.off.dy];
+}
+
+/* ===================================================== point-cloud layer */
+function renderPcd(){
+  const img = pcdCtx.createImageData(W, H);
+  const buf = new Uint32Array(img.data.buffer);
+  buf.fill(BG_U32);
+  const p = S.pcd;
+  if(p){
+    const Sd = S.view.scale*dpr;
+    const ox = W/2 - S.view.cx*Sd, oy = H/2 + S.view.cy*Sd;
+    const zLo = p.zLo, zSpan = (p.zHi - p.zLo) || 1;
+    const xyz = p.xyz, n = p.n;
+    /* while the view is moving, raster 1-in-4 with a fatter dot: same apparent
+       density, ~4x the frame rate on a multi-million-point cloud */
+    const si = interacting ? 4 : 1;
+    const ps = S.ptSize + (si > 1 ? 1 : 0), j3 = si*3;
+    for(let i=0, j=0; i<n; i+=si, j+=j3){
+      const px = (xyz[j]*Sd + ox)|0;
+      if(px<0 || px>=W) continue;
+      const py = (oy - xyz[j+1]*Sd)|0;
+      if(py<0 || py>=H) continue;
+      let t = ((xyz[j+2]-zLo)/zSpan*255)|0;
+      if(t<0) t=0; else if(t>255) t=255;
+      const c = LUT[t];
+      if(ps===1){ buf[py*W+px] = c; continue; }
+      const xe = Math.min(W, px+ps), ye = Math.min(H, py+ps);
+      for(let yy=py; yy<ye; yy++){ const row=yy*W; for(let xx=px; xx<xe; xx++) buf[row+xx]=c; }
+    }
+  }
+  pcdCtx.putImageData(img, 0, 0);
+  pcdDirty = false;
+}
+
+/* ===================================================== vector layer */
+function renderOsm(){
+  const L = osmLayer.width, T = osmLayer.height;
+  osmCtx.clearRect(0,0,L,T);
+  const o = S.osm;
+  if(o){
+    const Sd = S.view.scale*dpr;
+    const ox = L/2 - S.view.cx*Sd, oy = T/2 + S.view.cy*Sd;
+    const th = S.off.rot*D2R, cs = Math.cos(th), sn = Math.sin(th);
+    const pvx=o.pivot[0], pvy=o.pivot[1], dx=S.off.dx, dy=S.off.dy;
+    const mx0=px2wx(-PAD), mx1=px2wx(W+PAD), my0=py2wy(H+PAD), my1=py2wy(-PAD);
+    const margin = Math.hypot(o.bbox[2]-o.bbox[0], o.bbox[3]-o.bbox[1])*Math.abs(sn) + 4;
+    const P = (x,y) => [ (cs*(x-pvx) - sn*(y-pvy) + pvx + dx)*Sd + ox,
+                          oy - (sn*(x-pvx) + cs*(y-pvy) + pvy + dy)*Sd ];
+    const boxVisible = (b0,b1,b2,b3) =>
+      !(b0+dx > mx1+margin || b2+dx < mx0-margin || b1+dy > my1+margin || b3+dy < my0-margin);
+
+    osmCtx.lineJoin = "round"; osmCtx.lineCap = "round";
+
+    /* --- boundaries --- */
+    const routing = S.mode === "connect";
+    osmCtx.lineWidth = (routing ? Math.max(1, S.laneW-1) : S.laneW)*dpr;
+    osmCtx.strokeStyle = routing ? COL.boundDim : COL.bound;
+    osmCtx.globalAlpha = routing ? 0.55 : 1;
+    osmCtx.beginPath();
+    const X=o.polyX, Y=o.polyY, st=o.pStart, ln=o.pLen, bx=o.pBox;
+    for(let w=0; w<st.length; w++){
+      const b=w*4;
+      if(!boxVisible(bx[b],bx[b+1],bx[b+2],bx[b+3])) continue;
+      const s=st[w], e=s+ln[w];
+      for(let i=s;i<e;i++){ const p=P(X[i],Y[i]); if(i===s) osmCtx.moveTo(p[0],p[1]); else osmCtx.lineTo(p[0],p[1]); }
+    }
+    osmCtx.stroke();
+    osmCtx.globalAlpha = 1;
+
+    /* --- travel-direction chevrons: a run of small > marks along the line --- */
+    const chevrons = (pts, spacing, size, colour, alpha, wide) => {
+      osmCtx.strokeStyle = colour; osmCtx.globalAlpha = alpha;
+      osmCtx.lineWidth = (wide||1.6)*dpr; osmCtx.lineCap = "round"; osmCtx.lineJoin = "round";
+      osmCtx.beginPath();
+      let carry = spacing*0.5;
+      for(let i=1;i<pts.length;i++){
+        const x0=pts[i-1][0], y0=pts[i-1][1];
+        const dx=pts[i][0]-x0, dy=pts[i][1]-y0, len=Math.hypot(dx,dy);
+        if(len < 0.001) continue;
+        const ux=dx/len, uy=dy/len, nx=-uy, ny=ux;
+        let t = carry;
+        for(; t<len; t+=spacing){
+          const cx=x0+ux*t, cy=y0+uy*t, bx=cx-ux*size, by=cy-uy*size, w=size*0.72;
+          osmCtx.moveTo(bx+nx*w, by+ny*w);
+          osmCtx.lineTo(cx, cy);
+          osmCtx.lineTo(bx-nx*w, by-ny*w);
+        }
+        carry = t - len;
+      }
+      osmCtx.stroke(); osmCtx.globalAlpha = 1;
+    };
+
+    /* --- lanelet centrelines, coloured by routing status --- */
+    if(routing && o.LL.length){
+      const buckets = [[],[],[]];
+      for(const ll of (o.LLa || o.LL)){
+        if(S.filter !== null && ll.st !== S.filter) continue;
+        if(!boxVisible(ll.box[0],ll.box[1],ll.box[2],ll.box[3])) continue;
+        buckets[ll.st].push(ll);
+      }
+      const cols = [COL.good, COL.mid, COL.bad];
+      osmCtx.lineWidth = (S.laneW+2.4)*dpr;
+      for(let k=0;k<3;k++){
+        if(!buckets[k].length) continue;
+        osmCtx.strokeStyle = cols[k];
+        osmCtx.beginPath();
+        for(const ll of buckets[k]){
+          const cx=ll.cx, cy=ll.cy;
+          for(let i=0;i<cx.length;i++){ const p=P(cx[i],cy[i]); if(i===0) osmCtx.moveTo(p[0],p[1]); else osmCtx.lineTo(p[0],p[1]); }
+        }
+        osmCtx.stroke();
+      }
+      /* direction: faint on everything once zoomed in, bright on the selection */
+      const showAll = Sd/dpr > 1.2;
+      if(showAll){
+        for(let k=0;k<3;k++){
+          for(const ll of buckets[k]){
+            if(ll === S.picked) continue;
+            chevrons(travel(ll).map(q => P(q[0], q[1])), 30*dpr, 5.2*dpr, TH.notch, 0.6, 1.7);
+          }
+        }
+      }
+
+      /* links the user added, drawn joint to joint */
+      if(S.links.length){
+        osmCtx.strokeStyle = COL.good; osmCtx.lineWidth = 2.4*dpr;
+        osmCtx.setLineDash([5*dpr, 4*dpr]);
+        osmCtx.beginPath();
+        for(const L of S.links){
+          const A=o.byId.get(L.a), B=o.byId.get(L.b);
+          if(!A || !B) continue;
+          const ta=travel(A), tb=travel(B);
+          const p1=P(ta[ta.length-1][0], ta[ta.length-1][1]), p2=P(tb[0][0], tb[0][1]);
+          osmCtx.moveTo(p1[0],p1[1]); osmCtx.lineTo(p2[0],p2[1]);
+        }
+        osmCtx.stroke(); osmCtx.setLineDash([]);
+      }
+      /* the highlighted candidate */
+      const hi = S.hiCand;
+      if(hi){
+        const A=o.byId.get(hi.a), B=o.byId.get(hi.b);
+        if(A && B){
+          osmCtx.strokeStyle = TH.pick; osmCtx.lineWidth = 3*dpr;
+          osmCtx.beginPath();
+          for(const ll of [A,B]) for(let i=0;i<ll.cx.length;i++){ const p=P(ll.cx[i],ll.cy[i]); if(i===0) osmCtx.moveTo(p[0],p[1]); else osmCtx.lineTo(p[0],p[1]); }
+          osmCtx.stroke();
+        }
+      }
+    }
+
+    /* --- lanelets created this session, and the one being drawn --- */
+    if(S.created.length || S.draft.length){
+      osmCtx.lineJoin = "round"; osmCtx.lineCap = "round";
+      for(const c of S.created){
+        if(S.deleted.has(c.id)) continue;
+        osmCtx.strokeStyle = COL.bound; osmCtx.lineWidth = Math.max(1, S.laneW-1)*dpr; osmCtx.globalAlpha = 0.9;
+        for(const w of [c.wl, c.wr]){
+          const nds = o.wayNds.get(w) || [];
+          osmCtx.beginPath();
+          let first = true;
+          for(const n of nds){ const q = nodePos(n); if(!q) continue; const t = P(q[0], q[1]);
+            first ? osmCtx.moveTo(t[0], t[1]) : osmCtx.lineTo(t[0], t[1]); first = false; }
+          osmCtx.stroke();
+        }
+        osmCtx.globalAlpha = 1;
+      }
+      if(S.draft.length){
+        const dp = S.draft.map(q => P(q[0], q[1]));
+        osmCtx.strokeStyle = COL.bound; osmCtx.lineWidth = 2*dpr;
+        osmCtx.setLineDash([6*dpr, 4*dpr]);
+        osmCtx.beginPath();
+        dp.forEach((t,i) => i ? osmCtx.lineTo(t[0],t[1]) : osmCtx.moveTo(t[0],t[1]));
+        osmCtx.stroke(); osmCtx.setLineDash([]);
+        osmCtx.fillStyle = COL.bound;
+        for(const t of dp){ osmCtx.beginPath(); osmCtx.arc(t[0], t[1], 3.6*dpr, 0, 6.2832); osmCtx.fill(); }
+      }
+    }
+
+    /* --- everything in the multi-selection --- */
+    if(S.sel.size){
+      osmCtx.strokeStyle = TH.pick; osmCtx.lineWidth = (S.laneW+4)*dpr;
+      osmCtx.lineCap = "round"; osmCtx.lineJoin = "round"; osmCtx.globalAlpha = 0.45;
+      osmCtx.beginPath();
+      for(const id of S.sel){
+        const ll = o.byId.get(id);
+        if(!ll || (S.picked && id === S.picked.id)) continue;
+        if(!boxVisible(ll.box[0],ll.box[1],ll.box[2],ll.box[3])) continue;
+        for(let i=0;i<ll.cx.length;i++){ const q=P(ll.cx[i],ll.cy[i]); if(i===0) osmCtx.moveTo(q[0],q[1]); else osmCtx.lineTo(q[0],q[1]); }
+      }
+      osmCtx.stroke(); osmCtx.globalAlpha = 1;
+    }
+
+    /* --- lanelet under the cursor while pointing --- */
+    if(S.hover && S.hover !== S.picked && o.byId.has(S.hover.id)){
+      const hp = travel(S.hover).map(q => P(q[0], q[1]));
+      osmCtx.strokeStyle = COL.bound; osmCtx.lineWidth = (S.laneW+5)*dpr;
+      osmCtx.lineCap = "round"; osmCtx.lineJoin = "round";
+      osmCtx.globalAlpha = 0.85;
+      osmCtx.beginPath();
+      for(let i=0;i<hp.length;i++){ if(i===0) osmCtx.moveTo(hp[i][0],hp[i][1]); else osmCtx.lineTo(hp[i][0],hp[i][1]); }
+      osmCtx.stroke(); osmCtx.globalAlpha = 1;
+    }
+
+    /* --- shape handles on the selected lanelet --- */
+    if(S.shape && S.picked && o.byId.has(S.picked.id)){
+      const hs = shapeNodes();
+      osmCtx.lineWidth = 1.4*dpr;
+      for(const h of hs){
+        const q = P(h.x, h.y);
+        const moved = S.moves.has(h.id);
+        osmCtx.beginPath();
+        osmCtx.arc(q[0], q[1], (moved ? 5 : 4)*dpr, 0, 6.2832);
+        osmCtx.fillStyle = moved ? TH.moved : TH.handleFill;
+        osmCtx.fill();
+        osmCtx.strokeStyle = moved ? TH.handleFill : TH.handleStroke;
+        osmCtx.stroke();
+      }
+    }
+
+    /* --- picked lanelet, with its direction spelled out --- */
+    if(S.picked && o.byId.has(S.picked.id)){
+      const ll = S.picked, pts = travel(ll).map(q => P(q[0], q[1]));
+      osmCtx.strokeStyle = TH.pick; osmCtx.lineWidth = (S.laneW+5)*dpr;
+      osmCtx.lineCap = "round"; osmCtx.lineJoin = "round";
+      osmCtx.beginPath();
+      for(let i=0;i<pts.length;i++){ if(i===0) osmCtx.moveTo(pts[i][0],pts[i][1]); else osmCtx.lineTo(pts[i][0],pts[i][1]); }
+      osmCtx.stroke();
+      chevrons(pts, 26*dpr, 7.2*dpr, TH.notch, 1, 2.3);
+      /* a dot on the start so the run of chevrons has an origin */
+      osmCtx.fillStyle = TH.notch;
+      osmCtx.beginPath(); osmCtx.arc(pts[0][0], pts[0][1], 4*dpr, 0, 6.2832); osmCtx.fill();
+    }
+  }
+  baked = {cx:S.view.cx, cy:S.view.cy, scale:S.view.scale, rot:S.off.rot, dx:S.off.dx, dy:S.off.dy};
+  osmDirty = false;
+}
+
+/* ===================================================== compose */
+function draw(){
+  needDraw = false;
+  if(pcdDirty) renderPcd();
+  const moved = baked.cx!==S.view.cx || baked.cy!==S.view.cy || baked.scale!==S.view.scale || baked.rot!==S.off.rot;
+  const Sd = S.view.scale*dpr;
+  let shx = (S.off.dx - baked.dx)*Sd, shy = -(S.off.dy - baked.dy)*Sd;
+  if(osmDirty || moved || Math.abs(shx)>PAD-40 || Math.abs(shy)>PAD-40){ renderOsm(); shx=0; shy=0; }
+  ctx.drawImage(pcdLayer, 0, 0);
+  drawGrid();
+  ctx.drawImage(osmLayer, -PAD+shx, -PAD+shy);
+  if(S.marquee){
+    const x0=wx2px(S.marquee[0]), y0=wy2py(S.marquee[1]);
+    const x1=wx2px(S.marquee[2]), y1=wy2py(S.marquee[3]);
+    ctx.save();
+    ctx.fillStyle = TH.bound+"1f";
+    ctx.strokeStyle = TH.bound; ctx.lineWidth = 1*dpr;
+    ctx.setLineDash([4*dpr,3*dpr]);
+    ctx.fillRect(x0, y0, x1-x0, y1-y0);
+    ctx.strokeRect(x0+.5, y0+.5, x1-x0, y1-y0);
+    ctx.restore();
+  }
+  updateStrip();
+}
+let drawFailed = false;
+function tick(){
+  if(needDraw){
+    try { draw(); }
+    catch(err){
+      needDraw = false;
+      if(!drawFailed){
+        drawFailed = true;
+        console.error("render failed:", err);
+        const n = document.getElementById("linkMsg");
+        if(n){ n.style.display = ""; n.className = "note warn"; n.textContent = "Rendering hit an error: " + err.message + ". The controls still work; reload to reset the view."; }
+      }
+    }
+  }
+  requestAnimationFrame(tick);
+}
+function invalidate(o){ if(o) osmDirty=true; needDraw=true; }
+function invalidateAll(){ pcdDirty=true; osmDirty=true; needDraw=true; }
+
+let interacting = false, idleTimer = 0;
+function beginInteract(){
+  interacting = true;
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => { interacting=false; invalidateAll(); }, 180);
+}
+
+function niceStep(minPx){
+  const target = minPx/(S.view.scale*dpr);
+  const p = Math.pow(10, Math.floor(Math.log10(target)));
+  for(const m of [1,2,5,10]) if(p*m >= target) return p*m;
+  return p*10;
+}
+function drawGrid(){
+  const g = niceStep(90*dpr);
+  ctx.save();
+  ctx.strokeStyle = TH.grid; ctx.lineWidth = 1;
+  ctx.beginPath();
+  const x0 = Math.ceil(px2wx(0)/g)*g, x1 = px2wx(W);
+  for(let x=x0;x<x1;x+=g){ const p=Math.round(wx2px(x))+.5; ctx.moveTo(p,0); ctx.lineTo(p,H); }
+  const y0 = Math.ceil(py2wy(H)/g)*g, y1 = py2wy(0);
+  for(let y=y0;y<y1;y+=g){ const p=Math.round(wy2py(y))+.5; ctx.moveTo(0,p); ctx.lineTo(W,p); }
+  ctx.stroke(); ctx.restore();
+}
+
+let curW = null;
+function updateStrip(){
+  $("stOff").textContent = `${S.off.dx.toFixed(2)}, ${S.off.dy.toFixed(2)} m` + (S.off.rot ? `  ${S.off.rot.toFixed(2)}°` : "");
+  $("stCur").textContent = curW ? `${curW[0].toFixed(2)}, ${curW[1].toFixed(2)}` : "—";
+  const g = niceStep(70*dpr);
+  $("scaleTxt").textContent = g>=1000 ? (g/1000)+" km" : g+" m";
+  $("scaleLine").style.width = (g*S.view.scale)+"px";
+}
+
+/* ===================================================== view helpers */
+/* Returns false when the canvas has not been laid out yet. Fitting against a
+   zero-height box used to yield a NEGATIVE scale, which silently inverted every
+   hit test and left the map unclickable, so the guard matters. */
+function fitBox(b, padFrac){
+  if(!b) return false;
+  const r = cvs.getBoundingClientRect();
+  const availW = r.width, availH = r.height - 30;
+  if(!(availW > 8) || !(availH > 8)) return false;
+  const w = Math.max(b[2]-b[0], 1e-6), h = Math.max(b[3]-b[1], 1e-6);
+  S.view.cx = (b[0]+b[2])/2; S.view.cy = (b[1]+b[3])/2;
+  S.view.scale = Math.max(1e-4, Math.min(availW/w, availH/h)*(padFrac||0.9));
+  invalidateAll();
+  return true;
+}
+/* if the fit could not run yet, retry on the next resize */
+let pendingFit = null;
+function requestFit(b, padFrac){
+  if(!b) return;
+  if(!fitBox(b, padFrac)) pendingFit = {b, padFrac};
+  else pendingFit = null;
+}
+function unionBox(){
+  const a = S.pcd&&S.pcd.bbox, b = S.osm&&S.osm.bbox;
+  if(a&&b) return [Math.min(a[0],b[0]),Math.min(a[1],b[1]),Math.max(a[2],b[2]),Math.max(a[3],b[3])];
+  return a||b;
+}
+function flyTo(x, y, scale){
+  const p = xform(x, y);
+  S.view.cx=p[0]; S.view.cy=p[1];
+  if(scale) S.view.scale=scale;
+  invalidateAll();
+}
+
+/* ===================================================== interaction */
+let drag = null, spaceDown = false, moved = false;
+cvs.addEventListener("pointerdown", e => {
+  cvs.setPointerCapture(e.pointerId);
+  /* Left is always "select". Navigation is middle, right, space or alt, so a
+     click never moves anything by accident hours into an edit. */
+  const explicitPan = e.button===1 || e.button===2 || spaceDown || e.altKey;
+  if(!explicitPan && S.shape && S.mode === "connect" && curW){
+    const h = handleAt(curW[0], curW[1]);
+    if(h){
+      S.vdrag = {id:h.id, pre:snapshot()};
+      cvs.classList.add("dragging");
+      drag = null;
+      return;
+    }
+  }
+  const marquee = !explicitPan && S.mode === "connect" && !S.picking && !S.vdrag && !S.drawing;
+  drag = {pan:explicitPan, explicitPan, marquee, add:e.shiftKey,
+          x:e.clientX, y:e.clientY, cx:S.view.cx, cy:S.view.cy,
+          dx:S.off.dx, dy:S.off.dy, w0:null, pre:snapshot()};
+  if(marquee && curW) drag.w0 = [curW[0], curW[1]];
+  moved = false;
+  cvs.classList.add("dragging");
+});
+cvs.addEventListener("pointermove", e => {
+  const r = cvs.getBoundingClientRect();
+  curW = [px2wx((e.clientX-r.left)*dpr), py2wy((e.clientY-r.top)*dpr)];
+  if(S.vdrag){ moveHandle(S.vdrag.id, curW[0], curW[1]); needDraw = true; return; }
+  if(S.picking && !drag){
+    const h = laneletAt(curW[0], curW[1]);
+    if(h !== S.hover){ S.hover = h; invalidate(true); }
+  }
+  if(drag){
+    const mx = (e.clientX-drag.x)/S.view.scale, my = -(e.clientY-drag.y)/S.view.scale;
+    if(Math.abs(e.clientX-drag.x) + Math.abs(e.clientY-drag.y) > 3) moved = true;
+    if(drag.pan){ S.view.cx=drag.cx-mx; S.view.cy=drag.cy-my; beginInteract(); invalidateAll(); }
+    else if(drag.marquee){
+      if(moved && drag.w0){ S.marquee = [drag.w0[0], drag.w0[1], curW[0], curW[1]]; needDraw = true; }
+    }
+    else if(S.mode === "align") setOffset(drag.dx+mx, drag.dy+my);
+  }
+  needDraw = true;
+});
+function endDrag(e){
+  if(S.vdrag){
+    pushHist(S.vdrag.pre);
+    S.vdrag = null;
+    cvs.classList.remove("dragging");
+    invalidate(true);
+    return;
+  }
+  if(!drag) return;
+  const wasPan = drag.pan, pre = drag.pre, hard = drag.explicitPan;
+  const wasMarquee = drag.marquee && moved && S.marquee, add = drag.add;
+  if(moved && !wasPan && !drag.marquee && S.mode === "align") pushHist(pre);
+  drag = null; cvs.classList.remove("dragging");
+  if(wasMarquee){ selectInBox(S.marquee, add); S.marquee = null; invalidate(true); }
+  else if(!moved && !hard && curW){
+    if(S.drawing) addDraftPoint(curW[0], curW[1]);
+    else pickLanelet(curW[0], curW[1], add);
+  }
+  S.marquee = null;
+  invalidate(true);
+}
+cvs.addEventListener("pointerup", endDrag);
+cvs.addEventListener("pointercancel", endDrag);
+cvs.addEventListener("contextmenu", e => e.preventDefault());
+cvs.addEventListener("dblclick", e => { if(S.drawing){ e.preventDefault(); finishDraft(); } });
+cvs.addEventListener("pointerleave", () => { curW=null; needDraw=true; });
+cvs.addEventListener("wheel", e => {
+  e.preventDefault();
+  const r = cvs.getBoundingClientRect();
+  const mxp=(e.clientX-r.left)*dpr, myp=(e.clientY-r.top)*dpr;
+  const wx=px2wx(mxp), wy=py2wy(myp);
+  const f = Math.exp(-e.deltaY*(e.deltaMode===1 ? 0.05 : 0.0016));
+  S.view.scale = Math.min(400, Math.max(0.004, S.view.scale*f));
+  S.view.cx = wx - (mxp-W/2)/(S.view.scale*dpr);
+  S.view.cy = wy + (myp-H/2)/(S.view.scale*dpr);
+  beginInteract(); invalidateAll();
+}, {passive:false});
+
+window.addEventListener("keydown", e => {
+  const t = e.target;
+  if(t && (t.tagName==="INPUT" || t.tagName==="SELECT")) return;
+  if(S.drawing){
+    if(e.key === "Enter"){ e.preventDefault(); finishDraft(); return; }
+    if(e.key === "Backspace"){ e.preventDefault(); S.draft.pop(); renderDraft(); invalidate(true); return; }
+  }
+  if(e.key === "Escape"){
+    if(S.drawing){ cancelDraft(); }
+    else if(pendingLink || pendingFlip){ pendingLink = null; pendingFlip = null; linkMsg("Cancelled."); }
+    else if(S.picking){ endPicking(); linkMsg("Pick cancelled."); }
+    else if(S.picked || S.sel.size){ S.picked = null; S.sel.clear(); renderInspector(); renderSelection(); invalidate(true); }
+    e.preventDefault(); return;
+  }
+  if((e.ctrlKey || e.metaKey) && (e.key==="z" || e.key==="Z")){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); return; }
+  if((e.ctrlKey || e.metaKey) && (e.key==="y" || e.key==="Y")){ e.preventDefault(); redo(); return; }
+  if(e.ctrlKey || e.metaKey) return;
+  if(e.code==="Space"){ spaceDown=true; cvs.classList.add("panmode"); e.preventDefault(); }
+  const k=e.key, m=e.shiftKey?10:1;
+  if(k==="ArrowLeft"){ nudge(-S.step*m,0); e.preventDefault(); }
+  else if(k==="ArrowRight"){ nudge(S.step*m,0); e.preventDefault(); }
+  else if(k==="ArrowUp"){ nudge(0,S.step*m); e.preventDefault(); }
+  else if(k==="ArrowDown"){ nudge(0,-S.step*m); e.preventDefault(); }
+});
+window.addEventListener("keyup", e => { if(e.code==="Space"){ spaceDown=false; cvs.classList.remove("panmode"); } });
+
+function nudge(dx,dy){
+  if(S.mode !== "align"){ linkMsg("The offset is locked outside Align. Switch to the Align tab to move the map."); return; }
+  pushHist(); setOffset(S.off.dx+dx, S.off.dy+dy); invalidate(true);
+}
+function setOffset(dx,dy){
+  S.off.dx=dx; S.off.dy=dy;
+  $("inDx").value=dx.toFixed(2); $("inDy").value=dy.toFixed(2);
+  $("pDelta").textContent = `${dx.toFixed(2)}, ${dy.toFixed(2)} m`;
+  needDraw = true;
+}
+$("nLeft").onclick=()=>nudge(-S.step,0); $("nRight").onclick=()=>nudge(S.step,0);
+$("nUp").onclick=()=>nudge(0,S.step);    $("nDown").onclick=()=>nudge(0,-S.step);
+$("nZero").onclick=()=>{ pushHist(); setOffset(0,0); S.off.rot=0; $("inRot").value="0.00"; invalidate(true); };
+$("steps").onclick = e => {
+  const b = e.target.closest("button"); if(!b) return;
+  S.step = parseFloat(b.dataset.s);
+  [...$("steps").children].forEach(c => c.classList.toggle("on", c===b));
+};
+$("inDx").oninput = e => { const v=parseFloat(e.target.value); if(isFinite(v)){ S.off.dx=v; $("pDelta").textContent=`${v.toFixed(2)}, ${S.off.dy.toFixed(2)} m`; invalidate(true); } };
+$("inDy").oninput = e => { const v=parseFloat(e.target.value); if(isFinite(v)){ S.off.dy=v; $("pDelta").textContent=`${S.off.dx.toFixed(2)}, ${v.toFixed(2)} m`; invalidate(true); } };
+$("inRot").oninput = e => { const v=parseFloat(e.target.value); if(isFinite(v)){ S.off.rot=v; invalidate(true); } };
+
+for(const [id,out,fn] of [
+  ["rgAlpha","vAlpha", v=>{S.alpha=v/100; buildLUT(); invalidateAll(); return String(v);}],
+  ["rgBright","vBright",v=>{S.bright=v/100; buildLUT(); invalidateAll(); return (v/100).toFixed(1);}],
+  ["rgPt","vPt",       v=>{S.ptSize=v; invalidateAll(); return String(v);}],
+  ["rgLw","vLw",       v=>{S.laneW=v; invalidate(true); return String(v);}],
+]){
+  const el = $(id), run = () => { $(out).textContent = fn(parseFloat(el.value)); };
+  el.addEventListener("input", run); run();
+}
+for(const id of ["inDx","inDy","inRot"]){
+  let pre = null;
+  $(id).addEventListener("focus", () => { pre = snapshot(); });
+  $(id).addEventListener("change", () => { if(pre){ pushHist(pre); pre = null; } });
+}
+$("fitAll").onclick = () => fitBox(unionBox());
+$("fitOsm").onclick = () => { if(S.osm){ const b=S.osm.bbox; fitBox([b[0]+S.off.dx,b[1]+S.off.dy,b[2]+S.off.dx,b[3]+S.off.dy],0.85); } };
+$("zTop").onclick   = () => { S.view.scale=1; invalidateAll(); };
+
+/* tabs */
+function setMode(m){
+  S.mode = m;
+  if(typeof endPicking === "function") endPicking();
+  cvs.classList.toggle("routing", m !== "align");
+  cvs.classList.toggle("drawing", S.drawing);
+  $("tabAlign").classList.toggle("on", m==="align");
+  $("tabConnect").classList.toggle("on", m==="connect");
+  $("paneAlign").classList.toggle("on", m==="align");
+  $("paneConnect").classList.toggle("on", m==="connect");
+  $("keyLane").innerHTML = m==="connect"
+    ? '<span class="sw" style="background:'+TH.good+'"></span><span>linked</span>'
+    : '<span class="sw" style="background:'+TH.bound+'"></span><span>Lanelet boundaries</span>';
+  invalidate(true);
+}
+$("tabAlign").onclick = () => setMode("align");
+$("tabConnect").onclick = () => setMode("connect");
+
+/* ===================================================== progress */
+function prog(t,f){ $("prog").classList.add("on"); $("progTxt").textContent=t; $("progBar").style.width=Math.round((f||0)*100)+"%"; }
+function progDone(){ $("prog").classList.remove("on"); }
+const yield_ = () => new Promise(r => setTimeout(r,0));
+const fmt = n => n.toLocaleString("en-US");
+
+/* ===================================================== PCD reader */
+function lzfDecompress(input, outLen){
+  const out = new Uint8Array(outLen);
+  let ip=0, op=0;
+  while(ip<input.length && op<outLen){
+    let ctrl = input[ip++];
+    if(ctrl < 32){ ctrl++; for(let i=0;i<ctrl;i++) out[op++]=input[ip++]; }
+    else {
+      let len = ctrl>>5;
+      let ref = op - ((ctrl & 0x1f)<<8) - 1;
+      if(len===7) len += input[ip++];
+      ref -= input[ip++];
+      len += 2;
+      while(len--) out[op++] = out[ref++];
+    }
+  }
+  return out;
+}
+function parsePcdHeader(bytes){
+  const head = new TextDecoder("ascii").decode(bytes.subarray(0, Math.min(bytes.length, 8192)));
+  const h = {}; let end=-1, cursor=0;
+  for(const line of head.split("\n")){
+    cursor += line.length + 1;
+    const t = line.replace(/\r$/,"").trim();
+    if(!t || t[0]==="#") continue;
+    const sp = t.indexOf(" ");
+    const key = (sp<0?t:t.slice(0,sp)).toUpperCase();
+    h[key] = sp<0 ? "" : t.slice(sp+1).trim();
+    if(key==="DATA"){ end=cursor; break; }
+  }
+  if(end<0) throw new Error("No DATA line found — is this a .pcd file?");
+  h._dataStart = end;
+  return h;
+}
+async function loadPcd(file){
+  prog("Reading "+file.name+"…", 0.02);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  prog("Parsing header…", 0.1);
+  const h = parsePcdHeader(bytes);
+  const fields=(h.FIELDS||"").split(/\s+/), sizes=(h.SIZE||"").split(/\s+/).map(Number);
+  const types=(h.TYPE||"").split(/\s+/), counts=(h.COUNT||"").split(/\s+/).map(Number);
+  const npts = parseInt(h.POINTS || (parseInt(h.WIDTH,10)*parseInt(h.HEIGHT,10)), 10);
+  const mode = (h.DATA||"ascii").toLowerCase();
+  const ix=fields.indexOf("x"), iy=fields.indexOf("y"), iz=fields.indexOf("z");
+  if(ix<0||iy<0||iz<0) throw new Error("PCD has no x/y/z fields (found: "+fields.join(", ")+")");
+  if(!npts || npts<1) throw new Error("PCD header reports no points.");
+  const cnt = i => (isFinite(counts[i]) && counts[i]>0) ? counts[i] : 1;
+  const offs=[]; let stride=0;
+  for(let i=0;i<fields.length;i++){ offs[i]=stride; stride += sizes[i]*cnt(i); }
+  const MAXPTS = 3000000;
+  const step = Math.max(1, Math.ceil(npts/MAXPTS));
+  const kept = Math.floor((npts+step-1)/step);
+  const xyz = new Float32Array(kept*3);
+  const rd = (dv,off,i) => {
+    const sz=sizes[i], ty=types[i];
+    if(ty==="F") return sz===4 ? dv.getFloat32(off,true) : dv.getFloat64(off,true);
+    if(ty==="U") return sz===1 ? dv.getUint8(off) : sz===2 ? dv.getUint16(off,true) : dv.getUint32(off,true);
+    return sz===1 ? dv.getInt8(off) : sz===2 ? dv.getInt16(off,true) : dv.getInt32(off,true);
+  };
+  let k = 0;
+  if(mode==="binary"){
+    const dv = new DataView(bytes.buffer, bytes.byteOffset + h._dataStart);
+    const avail = bytes.length - h._dataStart;
+    for(let i=0;i<npts;i+=step){
+      const base = i*stride;
+      if(base+stride > avail) break;
+      xyz[k*3]=rd(dv,base+offs[ix],ix); xyz[k*3+1]=rd(dv,base+offs[iy],iy); xyz[k*3+2]=rd(dv,base+offs[iz],iz);
+      k++;
+      if((k & 0xFFFFF)===0){ prog(`Reading points… ${fmt(k)} / ${fmt(kept)}`, 0.1+0.85*k/kept); await yield_(); }
+    }
+  } else if(mode==="binary_compressed"){
+    prog("Decompressing (LZF)…", 0.2);
+    const dv0 = new DataView(bytes.buffer, bytes.byteOffset + h._dataStart);
+    const cLen = dv0.getUint32(0,true), dLen = dv0.getUint32(4,true);
+    const raw = lzfDecompress(bytes.subarray(h._dataStart+8, h._dataStart+8+cLen), dLen);
+    const dv = new DataView(raw.buffer);
+    const colOff=[]; let c=0;
+    for(let i=0;i<fields.length;i++){ colOff[i]=c; c += sizes[i]*cnt(i)*npts; }
+    for(let i=0;i<npts;i+=step){
+      xyz[k*3]=rd(dv,colOff[ix]+i*sizes[ix]*cnt(ix),ix);
+      xyz[k*3+1]=rd(dv,colOff[iy]+i*sizes[iy]*cnt(iy),iy);
+      xyz[k*3+2]=rd(dv,colOff[iz]+i*sizes[iz]*cnt(iz),iz);
+      k++;
+      if((k & 0xFFFFF)===0){ prog(`Reading points… ${fmt(k)} / ${fmt(kept)}`, 0.3+0.65*k/kept); await yield_(); }
+    }
+  } else {
+    prog("Parsing ASCII points…", 0.2);
+    const lines = new TextDecoder("ascii").decode(bytes.subarray(h._dataStart)).split("\n");
+    let row = 0;
+    for(let li=0; li<lines.length; li++){
+      const L = lines[li].trim();
+      if(!L) continue;
+      if(row % step === 0){
+        const p = L.split(/\s+/);
+        xyz[k*3]=+p[ix]; xyz[k*3+1]=+p[iy]; xyz[k*3+2]=+p[iz]; k++;
+      }
+      row++;
+      if((row & 0xFFFFF)===0){ prog(`Parsing ASCII… ${fmt(row)}`, 0.2+0.75*row/npts); await yield_(); }
+    }
+  }
+  if(k===0) throw new Error("No points could be read from this PCD.");
+  prog("Building index…", 0.97);
+  const out = xyz.subarray(0,k*3);
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  const zs = new Float64Array(Math.min(k,200000));
+  const zStep = Math.max(1, Math.floor(k/zs.length));
+  let zi=0;
+  for(let i=0,j=0;i<k;i++,j+=3){
+    const x=out[j], y=out[j+1];
+    if(!isFinite(x)||!isFinite(y)) continue;
+    if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+    if(i%zStep===0 && zi<zs.length) zs[zi++]=out[j+2];
+  }
+  const zSorted = zs.subarray(0,zi).slice().sort();
+  const zLo = zi ? zSorted[Math.floor(zi*0.02)] : 0;
+  const zHi = zi ? zSorted[Math.floor(zi*0.98)] : 1;
+  S.pcd = {xyz:out, n:k, zLo, zHi, bbox:[x0,y0,x1,y1], total:npts, name:file.name, stride:step};
+  progDone();
+}
+
+/* ===================================================== OSM reader */
+const RE_NODE = /<node\b[^>]*\/>|<node\b[^>]*>[\s\S]*?<\/node>/g;
+const RE_WAY  = /<way\b[^>]*\/>|<way\b[^>]*>[\s\S]*?<\/way>/g;
+const RE_REL  = /<relation\b[^>]*\/>|<relation\b[^>]*>[\s\S]*?<\/relation>/g;
+const RE_NDG  = /<nd\b[^>]*\bref="(-?\d+)"/g;
+const RE_MEMG = /<member\b[^>]*\brole="(\w+)"[^>]*\bref="(-?\d+)"|<member\b[^>]*\bref="(-?\d+)"[^>]*\brole="(\w+)"/g;
+const RE_ID  = /\bid="([^"]*)"/;
+const RE_LAT = /\blat="([^"]*)"/;
+const RE_LON = /\blon="([^"]*)"/;
+const RE_LX  = /<tag\b[^>]*\bk="local_x"[^>]*\bv="([^"]*)"/;
+const RE_LY  = /<tag\b[^>]*\bk="local_y"[^>]*\bv="([^"]*)"/;
+const RE_LXW = /(<tag\b[^>]*\bk="local_x"[^>]*\bv=")[^"]*"/;
+const RE_LYW = /(<tag\b[^>]*\bk="local_y"[^>]*\bv=")[^"]*"/;
+const cap = (s,re) => { const m = re.exec(s); return m ? m[1] : null; };
+const tagOf = (s,k) => { const m = new RegExp('<tag\\b[^>]*\\bk="'+k+'"[^>]*\\bv="([^"]*)"').exec(s); return m ? m[1] : null; };
+
+async function loadOsm(file){
+  prog("Reading "+file.name+"…", 0.05);
+  const raw = await file.text();
+  prog("Parsing nodes…", 0.15);
+
+  const idx = new Map(); const NX=[], NY=[], LAT=[], LON=[];
+  let m, seen=0, withLocal=0;
+  RE_NODE.lastIndex = 0;
+  while((m = RE_NODE.exec(raw))){
+    const b = m[0];
+    const id = cap(b, RE_ID); if(id===null) continue;
+    const lat = parseFloat(cap(b, RE_LAT)), lon = parseFloat(cap(b, RE_LON));
+    const lx = cap(b, RE_LX), ly = cap(b, RE_LY);
+    let x=NaN, y=NaN;
+    if(lx!==null && ly!==null){ x=parseFloat(lx); y=parseFloat(ly); withLocal++; }
+    idx.set(id, NX.length);
+    NX.push(x); NY.push(y); LAT.push(lat); LON.push(lon);
+    if((++seen & 0x7FFF)===0){ prog(`Parsing nodes… ${fmt(seen)}`, 0.15+0.3*Math.min(1,seen/120000)); await yield_(); }
+  }
+  if(!seen) throw new Error("No <node> elements found — is this a lanelet2 .osm?");
+
+  /* metres per degree, solved from this file's own lat/lon <-> local_x/local_y */
+  let kLat=111132, kLon=111320, fitRms=null, fitted=false;
+  if(withLocal > 100){
+    const fit = (a,b) => {
+      let n=0, sa=0, sb=0;
+      for(let i=0;i<a.length;i++) if(isFinite(a[i])&&isFinite(b[i])){ sa+=a[i]; sb+=b[i]; n++; }
+      const ma=sa/n, mb=sb/n; let num=0, den=0;
+      for(let i=0;i<a.length;i++) if(isFinite(a[i])&&isFinite(b[i])){ const da=a[i]-ma; num+=da*(b[i]-mb); den+=da*da; }
+      const k = den ? num/den : 0, c = mb - k*ma;
+      let se=0;
+      for(let i=0;i<a.length;i++) if(isFinite(a[i])&&isFinite(b[i])){ const e=b[i]-(k*a[i]+c); se+=e*e; }
+      return {k, rms:Math.sqrt(se/n)};
+    };
+    const fy = fit(LAT,NY), fx = fit(LON,NX);
+    if(isFinite(fy.k) && Math.abs(fy.k)>1000 && isFinite(fx.k) && Math.abs(fx.k)>1000){
+      kLat=Math.abs(fy.k); kLon=Math.abs(fx.k); fitRms=Math.max(fy.rms,fx.rms); fitted=true;
+    }
+  }
+  if(withLocal === 0){
+    let sLat=0, sLon=0, n=0;
+    for(let i=0;i<LAT.length;i++) if(isFinite(LAT[i])){ sLat+=LAT[i]; sLon+=LON[i]; n++; }
+    const mLat=sLat/n, mLon=sLon/n;
+    kLat = 111132.92 - 559.82*Math.cos(2*mLat*D2R) + 1.175*Math.cos(4*mLat*D2R);
+    kLon = 111412.84*Math.cos(mLat*D2R) - 93.5*Math.cos(3*mLat*D2R);
+    for(let i=0;i<LAT.length;i++){ NX[i]=(LON[i]-mLon)*kLon; NY[i]=(LAT[i]-mLat)*kLat; }
+  }
+
+  prog("Parsing ways…", 0.5);
+  const wayNds = new Map(), wayPoly = new Map(), wayIndex = new Map(), starts=[], lens=[], boxes=[], PX=[], PY=[];
+  let nw = 0;
+  RE_WAY.lastIndex = 0;
+  while((m = RE_WAY.exec(raw))){
+    const body = m[0];
+    const wid = cap(body, RE_ID); if(wid===null) continue;
+    RE_NDG.lastIndex = 0;
+    const nds = []; let r;
+    while((r = RE_NDG.exec(body))) nds.push(r[1]);
+    wayNds.set(wid, nds);
+    const s = PX.length;
+    let b0=Infinity,b1=Infinity,b2=-Infinity,b3=-Infinity, c=0;
+    for(const nid of nds){
+      const slot = idx.get(nid); if(slot===undefined) continue;
+      const x=NX[slot], y=NY[slot];
+      if(!isFinite(x)||!isFinite(y)) continue;
+      PX.push(x); PY.push(y); c++;
+      if(x<b0)b0=x; if(x>b2)b2=x; if(y<b1)b1=y; if(y>b3)b3=y;
+    }
+    if(c<2){ PX.length=s; PY.length=s; }
+    else { wayIndex.set(wid, starts.length); starts.push(s); lens.push(c); boxes.push(b0,b1,b2,b3); wayPoly.set(wid,{s, n:c}); }
+    if((++nw & 0x3FF)===0) await yield_();
+  }
+  if(!starts.length) throw new Error("No drawable <way> geometry found in this file.");
+
+  /* node -> the ways that use it, so a dragged vertex can repaint exactly the
+     boundaries and lanelets it belongs to */
+  const nodeWays = new Map();
+  for(const [wid, nds] of wayNds){
+    for(const n of nds){
+      let a = nodeWays.get(n);
+      if(!a){ a = []; nodeWays.set(n, a); }
+      if(a[a.length-1] !== wid) a.push(wid);
+    }
+  }
+
+  prog("Parsing lanelets…", 0.8);
+  const LL=[], byId=new Map();
+  const P = nid => { const s=idx.get(nid); return s===undefined ? null : (isFinite(NX[s]) ? [NX[s],NY[s]] : null); };
+  RE_REL.lastIndex = 0;
+  while((m = RE_REL.exec(raw))){
+    const body = m[0];
+    if(tagOf(body,"type") !== "lanelet") continue;
+    const id = cap(body, RE_ID); if(id===null) continue;
+    let wl=null, wr=null, r;
+    RE_MEMG.lastIndex = 0;
+    while((r = RE_MEMG.exec(body))){
+      const role = r[1] || r[4], ref = r[2] || r[3];
+      if(role==="left") wl=ref; else if(role==="right") wr=ref;
+    }
+    const nl = wl && wayNds.get(wl), nr = wr && wayNds.get(wr);
+    if(!nl || !nr || nl.length<2 || nr.length<2) continue;
+    const cl = centreline(nl, nr, P);
+    if(!cl) continue;
+    const ll = {
+      id, wl, wr, nl, nr,
+      subtype: tagOf(body,"subtype") || "—",
+      speed: tagOf(body,"speed_limit"),
+      cx:cl.cx, cy:cl.cy, box:cl.box, hw:cl.hw,
+      succ:[], pred:[], st:2,
+    };
+    LL.push(ll); byId.set(id, ll);
+  }
+
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(let i=0;i<PX.length;i++){
+    if(PX[i]<x0)x0=PX[i]; if(PX[i]>x1)x1=PX[i];
+    if(PY[i]<y0)y0=PY[i]; if(PY[i]>y1)y1=PY[i];
+  }
+
+  let maxId = 0;
+  for(const k of idx.keys()){ const v = +k; if(isFinite(v) && v > maxId) maxId = v; }
+  for(const k of wayNds.keys()){ const v = +k; if(isFinite(v) && v > maxId) maxId = v; }
+  for(const ll of LL){ const v = +ll.id; if(isFinite(v) && v > maxId) maxId = v; }
+
+  S.osm = {
+    raw, name:file.name,
+    polyX:Float32Array.from(PX), polyY:Float32Array.from(PY),
+    polyX0:Float32Array.from(PX), polyY0:Float32Array.from(PY),
+    pStart:Int32Array.from(starts), pLen:Int32Array.from(lens), pBox:Float64Array.from(boxes),
+    bbox:[x0,y0,x1,y1], pivot:[(x0+x1)/2,(y0+y1)/2],
+    kLat, kLon, fitRms, fitted,
+    nodeCount:seen, wayCount:starts.length, hasLocal:withLocal>0,
+    idx, NX, NY, LAT, LON, wayNds, wayPoly, LL, byId, P,
+    NX0:NX.slice(), NY0:NY.slice(), nodeWays, wayIndex,
+    wayLanelets:(()=>{const m=new Map();for(const ll of LL){for(const w of [ll.wl,ll.wr]){let a=m.get(w);if(!a){a=[];m.set(w,a);}a.push(ll);}}return m;})(),
+    baseNodes:NX.length, baseNextId:maxId+1, nextId:maxId+1,
+  };
+  progDone();
+}
+
+/* resample both bounds at equal arc-length fractions and average them */
+function centreline(nl, nr, P){
+  const gather = ids => {
+    const pts=[];
+    for(const n of ids){ const p=P(n); if(p) pts.push(p); }
+    return pts;
+  };
+  const A = gather(nl), B = gather(nr);
+  if(A.length<2 || B.length<2) return null;
+  const K = 10;
+  const sampleAt = (pts, f) => {
+    let total=0; const seg=[];
+    for(let i=1;i<pts.length;i++){ const d=Math.hypot(pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]); seg.push(d); total+=d; }
+    if(total===0) return pts[0];
+    let want = f*total, acc = 0;
+    for(let i=0;i<seg.length;i++){
+      if(acc+seg[i] >= want){
+        const t = seg[i]===0 ? 0 : (want-acc)/seg[i];
+        return [pts[i][0]+(pts[i+1][0]-pts[i][0])*t, pts[i][1]+(pts[i+1][1]-pts[i][1])*t];
+      }
+      acc += seg[i];
+    }
+    return pts[pts.length-1];
+  };
+  const cx=new Float32Array(K), cy=new Float32Array(K);
+  let b0=Infinity,b1=Infinity,b2=-Infinity,b3=-Infinity, wsum=0;
+  for(let i=0;i<K;i++){
+    const f=i/(K-1), a=sampleAt(A,f), b=sampleAt(B,f);
+    const x=(a[0]+b[0])/2, y=(a[1]+b[1])/2;
+    cx[i]=x; cy[i]=y; wsum += Math.hypot(a[0]-b[0], a[1]-b[1]);
+    if(x<b0)b0=x; if(x>b2)b2=x; if(y<b1)b1=y; if(y>b3)b3=y;
+  }
+  return {cx, cy, box:[b0,b1,b2,b3], hw:wsum/K/2};
+}
+
+/* ===================================================== routing graph
+   A lanelet's start joint is the pair (first node of its left bound, first
+   node of its right bound); its end joint is the pair of last nodes. B follows
+   A exactly when B's start joint equals A's end joint. Everything below reads
+   endpoints through the edit overlay, never straight off the file. */
+function wayFirst(w){
+  const ov = S.edit.first.get(w);
+  if(ov !== undefined) return ov;
+  return S.osm.wayNds.get(w)[0];
+}
+function wayLast(w){
+  const ov = S.edit.last.get(w);
+  if(ov !== undefined) return ov;
+  const a = S.osm.wayNds.get(w);
+  return a[a.length-1];
+}
+/* A reversed lanelet travels the other way, which swaps BOTH which end is the
+   start and which bound is on the left. */
+const flipped  = ll => S.flips.has(ll.id);
+const mirrored = ll => S.swaps.has(ll.id);
+/* Reversing direction swaps which bound is on the left; so does a mirror. Two
+   swaps cancel, so the effective sides are the XOR of the two. */
+const eLW = ll => (flipped(ll) !== mirrored(ll)) ? ll.wr : ll.wl;
+const eRW = ll => (flipped(ll) !== mirrored(ll)) ? ll.wl : ll.wr;
+const jStart = ll => flipped(ll)
+  ? wayLast(eLW(ll))+"|"+wayLast(eRW(ll))
+  : wayFirst(eLW(ll))+"|"+wayFirst(eRW(ll));
+const jEnd = ll => flipped(ll)
+  ? wayFirst(eLW(ll))+"|"+wayFirst(eRW(ll))
+  : wayLast(eLW(ll))+"|"+wayLast(eRW(ll));
+const startPts = ll => flipped(ll)
+  ? [nodePos(wayLast(eLW(ll))),  nodePos(wayLast(eRW(ll)))]
+  : [nodePos(wayFirst(eLW(ll))), nodePos(wayFirst(eRW(ll)))];
+const endPts = ll => flipped(ll)
+  ? [nodePos(wayFirst(eLW(ll))), nodePos(wayFirst(eRW(ll)))]
+  : [nodePos(wayLast(eLW(ll))),  nodePos(wayLast(eRW(ll)))];
+/* centreline in travel order */
+const travel = ll => {
+  const n = ll.cx.length, out = new Array(n);
+  for(let i=0;i<n;i++){ const k = flipped(ll) ? n-1-i : i; out[i] = [ll.cx[k], ll.cy[k]]; }
+  return out;
+};
+function nodePos(id){
+  const o = S.osm, s = o.idx.get(id);
+  if(s === undefined) return null;
+  return isFinite(o.NX[s]) ? [o.NX[s], o.NY[s]] : null;
+}
+/* a detach needs a node of its own, cloned from the one it is leaving */
+function cloneNode(srcId){
+  const o = S.osm, s = o.idx.get(srcId);
+  const id = String(o.nextId++);
+  o.idx.set(id, o.NX.length);
+  o.NX.push(o.NX[s]); o.NY.push(o.NY[s]);
+  if(o.LAT){ o.LAT.push(o.LAT[s]); o.LON.push(o.LON[s]); }
+  S.edit.newNodes.push({id, src:srcId});
+  return id;
+}
+/* Replay every link and cut from the pristine file. Union-find gives each
+   merged group of joint nodes one representative id. */
+function rebuildEdits(){
+  const o = S.osm;
+  S.edit.first.clear(); S.edit.last.clear();
+  if(!o) return;
+  for(const c of S.edit.newNodes) o.idx.delete(c.id);
+  S.edit.newNodes.length = 0;
+  o.NX.length = o.baseNodes; o.NY.length = o.baseNodes;
+  /* Reset every node a drag has EVER touched — not just the ones currently
+     moved — otherwise undoing a drag leaves the old position behind. */
+  if(o.NX0){
+    for(const nid of S.movedEver){
+      const sl = o.idx.get(nid);
+      if(sl === undefined || sl >= o.baseNodes) continue;
+      o.NX[sl] = o.NX0[sl]; o.NY[sl] = o.NY0[sl];
+    }
+    for(const [nid, p] of S.moves){
+      const sl = o.idx.get(nid);
+      if(sl === undefined || sl >= o.baseNodes) continue;
+      o.NX[sl] = p[0]; o.NY[sl] = p[1];
+    }
+  }
+  if(o.LAT){ o.LAT.length = o.baseNodes; o.LON.length = o.baseNodes; }
+  o.nextId = o.baseNextId;
+
+  const par = new Map();
+  const find = x => {
+    if(!par.has(x)) par.set(x,x);
+    let r = x; while(par.get(r) !== r) r = par.get(r);
+    while(par.get(x) !== r){ const n = par.get(x); par.set(x,r); x = n; }
+    return r;
+  };
+  const uni = (a,b) => { const ra=find(a), rb=find(b); if(ra!==rb) par.set(rb,ra); };
+  const oF = w => o.wayNds.get(w)[0];
+  const oL = w => { const a=o.wayNds.get(w); return a[a.length-1]; };
+  const endN   = ll => flipped(ll) ? [oF(eLW(ll)), oF(eRW(ll))] : [oL(eLW(ll)), oL(eRW(ll))];
+  const startN = ll => flipped(ll) ? [oL(eLW(ll)), oL(eRW(ll))] : [oF(eLW(ll)), oF(eRW(ll))];
+  for(const L of S.links){
+    const A=o.byId.get(L.a), B=o.byId.get(L.b);
+    if(!A || !B) continue;
+    const a = endN(A), b = startN(B);
+    uni(a[0], b[0]); uni(a[1], b[1]);
+  }
+  for(const [w, nds] of o.wayNds){
+    const f = find(nds[0]);                 if(f !== nds[0])                 S.edit.first.set(w, f);
+    const l = find(nds[nds.length-1]);      if(l !== nds[nds.length-1])      S.edit.last.set(w, l);
+  }
+  for(const c of S.cuts){
+    const ll = o.byId.get(c.ll); if(!ll) continue;
+    const head = (c.side === "start") !== flipped(ll);   // geometric end to detach
+    if(head){
+      S.edit.first.set(ll.wl, cloneNode(wayFirst(ll.wl)));
+      S.edit.first.set(ll.wr, cloneNode(wayFirst(ll.wr)));
+    } else {
+      S.edit.last.set(ll.wl, cloneNode(wayLast(ll.wl)));
+      S.edit.last.set(ll.wr, cloneNode(wayLast(ll.wr)));
+    }
+  }
+  /* redraw the polylines and centrelines that a dragged vertex belongs to */
+  if(o.polyX0){
+    o.polyX.set(o.polyX0); o.polyY.set(o.polyY0);
+    if(S.movedEver.size && o.nodeWays){
+      const ways = new Set();
+      for(const nid of S.movedEver) for(const w of (o.nodeWays.get(nid) || [])) ways.add(w);
+      for(const w of ways){
+        const sl = o.wayPoly.get(w); if(!sl) continue;
+        const nds = o.wayNds.get(w);
+        /* write into the working arrays, never into the pristine copy */
+        for(let k=0;k<nds.length && k<sl.n;k++){
+          const p = nodePos(nds[k]);
+          if(p){ o.polyX[sl.s+k] = p[0]; o.polyY[sl.s+k] = p[1]; }
+        }
+        let b0=Infinity,b1=Infinity,b2=-Infinity,b3=-Infinity;
+        for(let k=0;k<sl.n;k++){
+          const x=o.polyX[sl.s+k], y=o.polyY[sl.s+k];
+          if(x<b0)b0=x; if(x>b2)b2=x; if(y<b1)b1=y; if(y>b3)b3=y;
+        }
+        const wi = o.wayIndex ? o.wayIndex.get(w) : undefined;
+        if(wi !== undefined){ o.pBox[wi*4]=b0; o.pBox[wi*4+1]=b1; o.pBox[wi*4+2]=b2; o.pBox[wi*4+3]=b3; }
+      }
+      const touched = new Set();
+      for(const w of ways) for(const ll of (o.wayLanelets.get(w) || [])) touched.add(ll);
+      for(const ll of touched){
+        const cl = centreline(o.wayNds.get(ll.wl), o.wayNds.get(ll.wr), o.P);
+        if(cl){ ll.cx=cl.cx; ll.cy=cl.cy; ll.box=cl.box; ll.hw=cl.hw; }
+      }
+    }
+    for(const [w, sl] of o.wayPoly){
+      const pf = nodePos(wayFirst(w)), pl = nodePos(wayLast(w));
+      if(pf){ o.polyX[sl.s] = pf[0]; o.polyY[sl.s] = pf[1]; }
+      if(pl){ o.polyX[sl.s+sl.n-1] = pl[0]; o.polyY[sl.s+sl.n-1] = pl[1]; }
+    }
+  }
+}
+
+/* A lane whose two boundaries have been pulled onto the same point is broken —
+   zero width, and Autoware's centreline would be meaningless there. Compare
+   every joint against the width it had in the file. */
+function collapsedJoints(){
+  const o = S.osm;
+  if(!o || !o.NX0) return [];
+  const bad = [];
+  const at = (id, arrX, arrY) => {
+    const sl = o.idx.get(id);
+    return sl === undefined ? null : [arrX[sl], arrY[sl]];
+  };
+  for(const ll of (o.LLa || o.LL)){
+    const nl = o.wayNds.get(ll.wl), nr = o.wayNds.get(ll.wr);
+    if(!nl || !nr || !nl.length || !nr.length) continue;
+    const pairs = [
+      [nl[0], nr[0], wayFirst(ll.wl), wayFirst(ll.wr)],
+      [nl[nl.length-1], nr[nr.length-1], wayLast(ll.wl), wayLast(ll.wr)],
+    ];
+    for(const [oa, ob, na, nb] of pairs){
+      const wasA = at(oa, o.NX0, o.NY0), wasB = at(ob, o.NX0, o.NY0);
+      const nowA = at(na, o.NX, o.NY),   nowB = at(nb, o.NX, o.NY);
+      if(!wasA || !wasB || !nowA || !nowB) continue;
+      const was = Math.hypot(wasA[0]-wasB[0], wasA[1]-wasB[1]);
+      const now = Math.hypot(nowA[0]-nowB[0], nowA[1]-nowB[1]);
+      if(was > 0.5 && now < 0.1){ bad.push(ll.id); break; }
+    }
+  }
+  return bad;
+}
+
+function analyse(){
+  const o = S.osm;
+  if(o) o.LLa = S.deleted.size ? o.LL.filter(l => !S.deleted.has(l.id)) : o.LL;
+  if(!o || !o.LL.length){
+    renderHealth(0,0,0);
+    $("candList").innerHTML = '<div class="empty">No lanelet relations in this file.</div>';
+    renderInspector();
+    return;
+  }
+  rebuildEdits();
+  const startAt = new Map();
+  for(const ll of o.LLa){
+    ll.succ.length = 0; ll.pred.length = 0;
+    const k = jStart(ll);
+    if(!startAt.has(k)) startAt.set(k, []);
+    startAt.get(k).push(ll);
+  }
+  for(const ll of o.LLa){
+    for(const nb of (startAt.get(jEnd(ll)) || [])){
+      if(nb === ll) continue;
+      ll.succ.push(nb.id); nb.pred.push(ll.id);
+    }
+  }
+  let g=0, mI=0, b=0;
+  for(const ll of o.LLa){
+    const s = ll.succ.length>0, p = ll.pred.length>0;
+    ll.st = (s&&p) ? 0 : (s||p) ? 1 : 2;
+    if(ll.st===0) g++; else if(ll.st===1) mI++; else b++;
+  }
+  renderHealth(g,mI,b);
+  $("stLL").textContent = `${fmt(o.LLa.length)}  ${g}/${mI}/${b}`;
+  const wrecked = collapsedJoints();
+  const cw = $("collapseWarn");
+  const key = wrecked.join(",");
+  if(wrecked.length){
+    cw.style.display = "";
+    cw.className = "note warn";
+    if(key !== cw.dataset.key){          // restart the flash on every change
+      cw.classList.remove("flash");
+      void cw.offsetWidth;
+      cw.classList.add("flash");
+    }
+    cw.innerHTML = `<b>${wrecked.length} lanelet${wrecked.length>1?"s have":" has"} a collapsed boundary</b> \u2014 both edges pulled onto one point, so the lane has no width there (${wrecked.slice(0,6).join(", ")}${wrecked.length>6?", \u2026":""}). That comes from linking across a gap. Ctrl+Z, or Undo all, puts the geometry back.`;
+  } else { cw.style.display = "none"; cw.classList.remove("flash"); }
+  cw.dataset.key = key;
+  buildCandidates();
+  if(S.candFilter === "flip") buildFlipCands();
+  renderInspector();
+  renderSelection();
+  invalidate(true);
+}
+function renderHealth(g,m,b){
+  const t = Math.max(1, g+m+b);
+  $("nGood").textContent=g; $("nMid").textContent=m; $("nBad").textContent=b;
+  $("bGood").style.width=(g/t*100)+"%"; $("bMid").style.width=(m/t*100)+"%"; $("bBad").style.width=(b/t*100)+"%";
+}
+for(const [id,f] of [["hGood",0],["hMid",1],["hBad",2]]){
+  $(id).onclick = () => {
+    S.filter = S.filter===f ? null : f;
+    for(const [i,ff] of [["hGood",0],["hMid",1],["hBad",2]])
+      $(i).classList.toggle("off", S.filter!==null && S.filter!==ff);
+    invalidate(true);
+  };
+}
+
+/* ---- candidates: every end-of-A near a start-of-B, both boundaries in gate ---- */
+const GATE_MAX = 0.50;   // hard cap, both directions
+let CANDS = [];
+function pairGap(A, B){
+  const a = endPts(A), b = startPts(B);
+  if(!a[0] || !a[1] || !b[0] || !b[1]) return null;
+  const dl = Math.hypot(a[0][0]-b[0][0], a[0][1]-b[0][1]);
+  const dr = Math.hypot(a[1][0]-b[1][0], a[1][1]-b[1][1]);
+  /* the same two ends measured left-to-right: if THIS is the small one, the
+     lanelets meet but one of them has its boundaries labelled the wrong way */
+  const xl = Math.hypot(a[0][0]-b[1][0], a[0][1]-b[1][1]);
+  const xr = Math.hypot(a[1][0]-b[0][0], a[1][1]-b[0][1]);
+  return {dl, dr, d:Math.max(dl,dr), crossed:Math.max(xl,xr)};
+}
+function buildCandidates(){
+  const o = S.osm;
+  CANDS = [];
+  if(!o || !o.LL.length){ renderCands(); return; }
+  const tol = Math.min(S.tol, GATE_MAX);
+  const starts = [];
+  for(const ll of o.LLa){
+    const p = startPts(ll);
+    if(p[0] && p[1]) starts.push({ll, lx:p[0][0], ly:p[0][1], rx:p[1][0], ry:p[1][1], key:jStart(ll)});
+  }
+  for(const A of o.LLa){
+    const e = endPts(A);
+    if(!e[0] || !e[1]) continue;
+    const al = e[0], ar = e[1];
+    const ke = jEnd(A);
+    for(const s of starts){
+      if(s.ll === A || s.key === ke) continue;     // self, or already joined
+      const dl = Math.hypot(al[0]-s.lx, al[1]-s.ly);
+      if(dl > tol) continue;
+      const dr = Math.hypot(ar[0]-s.rx, ar[1]-s.ry);
+      if(dr > tol) continue;
+      CANDS.push({a:A.id, b:s.ll.id, d:Math.max(dl,dr)});
+    }
+  }
+  CANDS.sort((p,q) => p.d - q.d);
+  renderCands();
+}
+/* How many next/previous edges the whole map has under the current flips. */
+function edgeCount(){
+  const o = S.osm, startAt = new Map();
+  for(const ll of o.LLa){
+    const k = jStart(ll);
+    let a = startAt.get(k); if(!a){ a = []; startAt.set(k, a); }
+    a.push(ll);
+  }
+  let n = 0;
+  for(const ll of o.LLa){
+    const a = startAt.get(jEnd(ll));
+    if(a) for(const nb of a) if(nb !== ll) n++;
+  }
+  return n;
+}
+/* Missing-link candidates that touch one lanelet. Flipping a lanelet only
+   changes pairs it is part of, so this is all that has to be re-measured. */
+function candsInvolving(ll){
+  const o = S.osm, tol = Math.min(S.tol, GATE_MAX);
+  let n = 0;
+  const e = endPts(ll), ke = jEnd(ll);
+  if(e[0] && e[1]) for(const B of o.LLa){
+    if(B === ll || jStart(B) === ke) continue;
+    const p = startPts(B);
+    if(!p[0] || !p[1]) continue;
+    if(Math.hypot(e[0][0]-p[0][0], e[0][1]-p[0][1]) > tol) continue;
+    if(Math.hypot(e[1][0]-p[1][0], e[1][1]-p[1][1]) > tol) continue;
+    n++;
+  }
+  const st = startPts(ll), ks = jStart(ll);
+  if(st[0] && st[1]) for(const A of o.LLa){
+    if(A === ll || jEnd(A) === ks) continue;
+    const p = endPts(A);
+    if(!p[0] || !p[1]) continue;
+    if(Math.hypot(st[0][0]-p[0][0], st[0][1]-p[0][1]) > tol) continue;
+    if(Math.hypot(st[1][0]-p[1][0], st[1][1]-p[1][1]) > tol) continue;
+    n++;
+  }
+  return n;
+}
+/* Try each lanelet reversed on its own and keep the ones that come out ahead.
+   Score counts joins it would form outright PLUS gaps inside the gate it would
+   bring into reach — a lanelet that is both backwards and short of its
+   neighbour scores nothing on exact matches alone. */
+let FLIPC = [];
+function buildFlipCands(){
+  const o = S.osm;
+  FLIPC = [];
+  if(!o || !o.LL.length){ renderCands(); return; }
+  const heavy = S.links.length > 0 || S.cuts.length > 0;
+  const base = edgeCount();
+  for(const ll of o.LLa){
+    const was = S.flips.has(ll.id);
+    const c0 = candsInvolving(ll);
+    if(was) S.flips.delete(ll.id); else S.flips.add(ll.id);
+    if(heavy) rebuildEdits();
+    const de = edgeCount() - base, dc = candsInvolving(ll) - c0;
+    if(was) S.flips.add(ll.id); else S.flips.delete(ll.id);
+    if(de + dc > 0) FLIPC.push({id:ll.id, net:de+dc, de, dc});
+  }
+  if(heavy) rebuildEdits();
+  FLIPC.sort((a,b) => b.net - a.net || (a.id < b.id ? -1 : 1));
+  renderCands();
+}
+
+function candShown(){
+  const o = S.osm;
+  if(S.candFilter === "all") return CANDS;
+  return CANDS.filter(c => {
+    const A=o.byId.get(c.a), B=o.byId.get(c.b);
+    return A && B && (!A.succ.length || !B.pred.length);
+  });
+}
+
+/* ---- undo / redo ----
+   Every edit is stored as intent (links, cuts, offset) and replayed from the
+   pristine file, so a snapshot of those three is a complete, exact state. */
+const HIST_MAX = 250;
+function snapshot(){
+  return {
+    flips: [...S.flips],
+    swaps: [...S.swaps],
+    deleted: [...S.deleted],
+    created: S.created.map(c => ({id:c.id, wl:c.wl, wr:c.wr})),
+    speeds: [...S.speeds],
+    moves: [...S.moves].map(([k,v]) => [k,[v[0],v[1]]]),
+    links: S.links.map(l => ({a:l.a, b:l.b})),
+    cuts:  S.cuts.map(c => ({ll:c.ll, side:c.side})),
+    off:   {dx:S.off.dx, dy:S.off.dy, rot:S.off.rot},
+  };
+}
+function restore(st){
+  S.flips = new Set(st.flips);
+  S.swaps = new Set(st.swaps || []);
+  S.deleted = new Set(st.deleted || []);
+  S.created = (st.created || []).map(c => ({id:c.id, wl:c.wl, wr:c.wr}));
+  reconcileCreated();
+  S.speeds = new Map(st.speeds);
+  S.moves = new Map((st.moves||[]).map(([k,v]) => [k,[v[0],v[1]]]));
+  S.links = st.links.map(l => ({a:l.a, b:l.b}));
+  S.cuts  = st.cuts.map(c => ({ll:c.ll, side:c.side}));
+  S.off.rot = st.off.rot;
+  $("inRot").value = st.off.rot.toFixed(2);
+  setOffset(st.off.dx, st.off.dy);
+}
+function pushHist(state){
+  S.hist.push(state || snapshot());
+  if(S.hist.length > HIST_MAX) S.hist.shift();
+  S.future.length = 0;
+  updateHistUI();
+}
+function updateHistUI(){
+  $("btnUndo").disabled = !S.hist.length;
+  $("btnRedo").disabled = !S.future.length;
+}
+function undo(){
+  if(!S.hist.length) return;
+  S.future.push(snapshot());
+  restore(S.hist.pop());
+  linkMsg(null); analyse(); updatePending(); updateHistUI(); invalidateAll();
+}
+function redo(){
+  if(!S.future.length) return;
+  S.hist.push(snapshot());
+  restore(S.future.pop());
+  linkMsg(null); analyse(); updatePending(); updateHistUI(); invalidateAll();
+}
+$("btnUndo").onclick = undo;
+
+/* ---- don't let a reload throw the session away ---- */
+function pendingEdits(){
+  return S.links.length + S.cuts.length + S.flips.size + S.speeds.size + S.moves.size
+       + (S.off.dx || S.off.dy || S.off.rot ? 1 : 0);
+}
+window.addEventListener("beforeunload", e => {
+  if(!S.osm || S.osm.demo || !pendingEdits()) return;
+  e.preventDefault();
+  e.returnValue = "";      // browsers show their own wording
+  return "";
+});
+$("btnRedo").onclick = redo;
+
+/* ---- link / cut operations ---- */
+const hasLink = (a,b) => S.links.some(L => L.a===a && L.b===b);
+function addLink(a,b){ if(!hasLink(a,b)) S.links.push({a,b}); }
+function dropLink(a,b){ S.links = S.links.filter(L => !(L.a===a && L.b===b)); }
+function linkMsg(text){
+  const el = $("linkMsg");
+  if(!text){ el.style.display = "none"; return; }
+  el.style.display = ""; el.className = "note warn"; el.textContent = text;
+}
+/* Remove A -> B. If the user made it, just forget it. Otherwise it is baked
+   into the file's shared nodes and has to be split apart — which is only
+   unambiguous when one side of the joint has nothing else hanging off it. */
+function unlink(aId, bId){
+  const o = S.osm, A = o.byId.get(aId), B = o.byId.get(bId);
+  if(!A || !B) return;
+  if(hasLink(aId,bId)){ pushHist(); dropLink(aId,bId); linkMsg(null); analyse(); return; }
+  /* The edge may exist because of a merge made between OTHER members of the
+     same junction — once several lanelets share one joint they all become each
+     other's neighbours, and no single edge can be picked out. Undoing the
+     responsible merge is the only way to take it apart. */
+  const related = S.links.filter(L => L.a===aId || L.b===aId || L.a===bId || L.b===bId);
+  if(related.length){
+    pushHist();
+    const names = related.map(L => L.a+" \u2192 "+L.b);
+    S.links = S.links.filter(L => related.indexOf(L) < 0);
+    analyse(); updatePending();
+    linkMsg(`${aId} \u2192 ${bId} is not a link on its own \u2014 it appears because ${related.length>1?"merges":"a merge"} you made put these lanelets on one shared junction. Removed ${names.join(", ")}, which takes the junction apart. Ctrl+Z restores ${related.length>1?"them":"it"}.`);
+    return;
+  }
+  /* Adjacent lanelets share boundary ways, so giving one a fresh endpoint node
+     can move the neighbours' joints with it. Say so rather than pretend the
+     cut is local. */
+  const neighbours = ll => S.osm.LL.filter(t => t !== ll &&
+    (t.wl===ll.wl || t.wr===ll.wl || t.wl===ll.wr || t.wr===ll.wr)).map(t => t.id);
+  const doCut = (ll, side) => {
+    const sh = neighbours(ll);
+    pushHist();
+    S.cuts.push({ll:ll.id, side});
+    analyse();
+    linkMsg(sh.length
+      ? `Detached the ${side} of ${ll.id}. Its boundary ways are shared with ${sh.length} other lanelet${sh.length>1?"s":""} (${sh.slice(0,4).join(", ")}${sh.length>4?"…":""}), so their links at that junction may have moved too — check the counts above.`
+      : null);
+  };
+  if(A.succ.length === 1){ doCut(A, "end"); return; }
+  if(B.pred.length === 1){ doCut(B, "start"); return; }
+  linkMsg(`${aId} → ${bId} is part of a junction: ${aId} has ${A.succ.length} successors and ${bId} has ${B.pred.length} predecessors, and they all share one pair of node IDs. Detaching either side would drop the others too, so this single link cannot be removed on its own.`);
+}
+const gapTxt = d => d < 1 ? (d*100).toFixed(1)+" cm" : d.toFixed(2)+" m";
+const gapCls = d => d < 0.10 ? "near" : d < 0.35 ? "mid" : "far";
+function renderCands(){
+  const el = $("candList");
+  if(!S.osm){ el.innerHTML = '<div class="empty">Load a lanelet2 .osm to scan for breaks.</div>'; return; }
+  if(S.candFilter === "flip"){
+    if(!FLIPC.length){
+      el.innerHTML = '<div class="empty">No lanelet gains links by being reversed.<br>Every direction that can be checked this way is already consistent.</div>';
+      return;
+    }
+    el.innerHTML = FLIPC.slice(0,200).map(c => `<div class="cand" data-flip="${c.id}" title="${c.de} join${c.de===1?"":"s"} outright, ${c.dc} gap${c.dc===1?"":"s"} brought inside the gate">
+        <input type="checkbox" ${S.flips.has(c.id) ? "checked" : ""}>
+        <span class="ids">reverse ${c.id}</span>
+        <span class="gap near">+${c.de}${c.dc ? " +"+c.dc+"~" : ""}</span>
+      </div>`).join("");
+    return;
+  }
+  const list = candShown();
+  if(!list.length){
+    el.innerHTML = `<div class="empty">Nothing unlinked within ${S.tol.toFixed(2)} m.${
+      S.candFilter==="gaps" ? "<br>Switch to “All in gate” to see joins between lanelets that already have links." : ""}</div>`;
+    return;
+  }
+  const shown = list.slice(0, 200);
+  el.innerHTML = shown.map(c => `<div class="cand" data-a="${c.a}" data-b="${c.b}">
+      <input type="checkbox" ${hasLink(c.a,c.b) ? "checked" : ""}>
+      <span class="ids">${c.a} → ${c.b}</span>
+      <span class="gap ${gapCls(c.d)}">${gapTxt(c.d)}</span>
+    </div>`).join("")
+    + (list.length>shown.length ? `<div class="empty">+ ${list.length-shown.length} more</div>` : "");
+}
+$("candList").addEventListener("click", e => {
+  const row = e.target.closest(".cand"); if(!row) return;
+  if(row.dataset.flip){
+    const id = row.dataset.flip, ll = S.osm.byId.get(id);
+    if(e.target.tagName === "INPUT"){ flipLanelet(id); renderCands(); return; }
+    if(ll){ S.picked = ll; renderInspector(); const t=travel(ll); flyTo(t[0][0], t[0][1], Math.max(S.view.scale, 6)); }
+    return;
+  }
+  const a = row.dataset.a, b = row.dataset.b;
+  if(e.target.tagName === "INPUT"){
+    if(e.target.checked) linkManual(a,b); else unlink(a,b);
+    updatePending(); renderCands();
+    return;
+  }
+  const A = S.osm.byId.get(a);
+  if(A){
+    S.hiCand = {a,b};
+    [...$("candList").children].forEach(c => c.classList && c.classList.toggle("sel", c===row));
+    S.picked = A; renderInspector();
+    const t=travel(A); flyTo(t[t.length-1][0], t[t.length-1][1], Math.max(S.view.scale, 8));
+  }
+});
+$("acceptAll").onclick = () => { pushHist(); for(const c of candShown()) addLink(c.a, c.b); linkMsg(null); updatePending(); analyse(); };
+$("clearAll").onclick  = () => { pushHist(); S.moves.clear(); S.speeds.clear(); S.flips.clear(); S.swaps.clear(); S.deleted.clear(); S.links.length=0; S.cuts.length=0; S.hiCand=null; linkMsg(null); updatePending(); analyse(); };
+$("candFilter").onclick = e => {
+  const b = e.target.closest("button"); if(!b) return;
+  S.candFilter = b.dataset.f;
+  [...$("candFilter").children].forEach(c => c.classList.toggle("on", c===b));
+  if(S.candFilter === "flip") buildFlipCands(); else renderCands();
+};
+{
+  const el = $("rgTol");
+  const run = () => {
+    S.tol = Math.min(parseInt(el.value,10)/100, GATE_MAX);
+    $("vTol").textContent = S.tol.toFixed(2)+" m";
+    if(S.osm) buildCandidates();
+  };
+  el.addEventListener("input", run); run();
+}
+function updatePending(){
+  const bits = [];
+  if(S.links.length) bits.push(S.links.length+" link");
+  if(S.cuts.length)  bits.push(S.cuts.length+" cut");
+  if(S.flips.size)   bits.push(S.flips.size+" flip");
+  if(S.swaps.size)   bits.push(S.swaps.size+" swap");
+  if(S.deleted.size) bits.push(S.deleted.size+" deleted");
+  if(S.created.length) bits.push(S.created.length+" new");
+  if(S.speeds.size)  bits.push(S.speeds.size+" speed");
+  if(S.moves.size)   bits.push(S.moves.size+" vertex");
+  $("pLinks").textContent = bits.length ? bits.join(", ") : "0";
+}
+
+/* ---- draw a new lanelet ----
+   It is built as a real member of the map: nodes, two boundary ways and a
+   lanelet, added straight into the model, so it can be linked, reversed,
+   reshaped and given a speed like any other. */
+function offsetSides(pts, half){
+  const L = [], R = [];
+  for(let i=0;i<pts.length;i++){
+    const a = pts[Math.max(0,i-1)], b = pts[Math.min(pts.length-1,i+1)];
+    let dx = b[0]-a[0], dy = b[1]-a[1];
+    const len = Math.hypot(dx,dy) || 1;
+    dx/=len; dy/=len;
+    L.push([pts[i][0] - dy*half, pts[i][1] + dx*half]);
+    R.push([pts[i][0] + dy*half, pts[i][1] - dx*half]);
+  }
+  return {L, R};
+}
+function addDraftPoint(wx, wy){
+  if(!S.osm || S.osm.demo){ linkMsg("Load a lanelet2 .osm first — a new lanelet is written into it."); return; }
+  S.draft.push(worldToMap(wx, wy));
+  renderDraft(); invalidate(true);
+}
+function renderDraft(){
+  const n = S.draft.length;
+  $("btnDraw").classList.toggle("on", S.drawing);
+  $("btnDraw").innerHTML = S.drawing ? "&#9998; Drawing\u2026" : "&#9998; New lanelet";
+  $("drawHint").style.display = S.drawing ? "" : "none";
+  $("drawHint").textContent = !S.drawing ? "" : n===0
+    ? "Click along the middle of the new lane. Enter finishes, Backspace undoes a point, Esc cancels."
+    : n===1 ? "1 point — click at least one more, then Enter."
+    : n+" points. Enter to finish, Backspace to undo, Esc to cancel.";
+}
+function finishDraft(){
+  const o = S.osm;
+  if(S.draft.length < 2 || !o) return;
+  const half = Math.max(0.5, parseFloat($("nwWidth").value || "3.5"))/2;
+  const sides = offsetSides(S.draft, half);
+  pushHist();
+  const mk = (x,y) => {
+    const id = String(o.nextId++);
+    o.idx.set(id, o.NX.length);
+    o.NX.push(x); o.NY.push(y);
+    if(o.NX0){ o.NX0.push(x); o.NY0.push(y); }
+    if(o.LAT){ o.LAT.push(null); o.LON.push(null); }
+    o.baseNodes = o.NX.length;
+    return id;
+  };
+  const wl = String(o.nextId++), wr = String(o.nextId++);
+  o.wayNds.set(wl, sides.L.map(p => mk(p[0], p[1])));
+  o.wayNds.set(wr, sides.R.map(p => mk(p[0], p[1])));
+  const id = String(o.nextId++);
+  o.baseNextId = o.nextId;
+  const cl = centreline(o.wayNds.get(wl), o.wayNds.get(wr), o.P);
+  const ll = {id, wl, wr, subtype:($("nwSub").value.trim() || "road"),
+              speed:$("nwSpeed").value.trim(), cx:cl.cx, cy:cl.cy, box:cl.box, hw:cl.hw,
+              succ:[], pred:[], st:2, isNew:true};
+  o.LL.push(ll); o.byId.set(id, ll);
+  for(const w of [wl, wr]){
+    o.wayLanelets.set(w, [ll]);
+    for(const n of o.wayNds.get(w)){
+      let a = o.nodeWays.get(n); if(!a){ a = []; o.nodeWays.set(n, a); }
+      a.push(w);
+    }
+  }
+  S.created.push({id, wl, wr});
+  S.draft = []; S.drawing = false;
+  S.picked = ll; S.sel.clear(); S.sel.add(id);
+  renderDraft(); analyse(); updatePending(); renderSelection();
+  linkMsg(`Created lanelet ${id} (${(half*2).toFixed(2)} m wide). It is a normal lanelet now — link it, reverse it, drag its vertices or set its speed.`);
+}
+function cancelDraft(){ S.draft = []; S.drawing = false; renderDraft(); linkMsg(null); invalidate(true); }
+/* undo/redo of a create is expressed as a deletion, so no geometry is unpicked */
+function reconcileCreated(){
+  const o = S.osm;
+  if(!o) return;
+  const want = new Set(S.created.map(c => c.id));
+  for(const ll of o.LL){
+    if(!ll.isNew) continue;
+    if(want.has(ll.id)) S.deleted.delete(ll.id); else S.deleted.add(ll.id);
+  }
+}
+$("btnDraw").onclick = () => {
+  if(S.drawing){ cancelDraft(); return; }
+  if(S.mode !== "connect") setMode("connect");
+  S.drawing = true; S.draft = []; S.picked = null;
+  renderDraft(); renderInspector(); invalidate(true);
+};
+
+/* ---- delete a lanelet ----
+   The relation is dropped on export; its boundary ways stay, because a
+   neighbouring lane usually shares them. */
+function deleteLanelet(id){
+  const o = S.osm, ll = o.byId.get(id);
+  if(!ll) return;
+  pushHist();
+  S.deleted.add(id);
+  S.sel.delete(id);
+  if(S.picked && S.picked.id === id) S.picked = null;
+  S.links = S.links.filter(L => L.a !== id && L.b !== id);
+  S.cuts  = S.cuts.filter(c => c.ll !== id);
+  S.flips.delete(id); S.swaps.delete(id); S.speeds.delete(id);
+  analyse(); updatePending(); renderSelection();
+  linkMsg(`${id} deleted. Its boundary ways are left in place — a neighbouring lane usually shares them. Ctrl+Z brings it back.`);
+}
+$("btnDelete").onclick = () => { if(S.picked) deleteLanelet(S.picked.id); };
+
+/* ---- speed limits ----
+   Kept as an overlay like every other edit, so undo and export stay uniform. */
+const speedOf = ll => S.speeds.has(ll.id) ? S.speeds.get(ll.id) : (ll.speed || "");
+const KMH_PER_MPH = 1.609344;
+const unitLabel = () => S.unit === "mph" ? "mph" : "km/h";
+/* A stored value is km/h unless it spells out a unit, which is the lanelet2
+   convention and matches every speed already in this map. */
+function speedKmh(raw){
+  if(raw === null || raw === undefined || raw === "") return null;
+  const m = /^\s*(-?[\d.]+)\s*(.*)$/.exec(String(raw));
+  if(!m) return null;
+  const n = parseFloat(m[1]);
+  if(!isFinite(n)) return null;
+  const u = m[2].toLowerCase().replace(/[\s.]/g, "");
+  if(u === "mph") return n*KMH_PER_MPH;
+  if(u === "ms" || u === "m/s") return n*3.6;
+  return n;
+}
+const trimNum = n => String(Math.round(n*100)/100);
+/* the number as the user is currently working in */
+function speedIn(raw){
+  const k = speedKmh(raw);
+  if(k === null) return "";
+  return trimNum(S.unit === "mph" ? k/KMH_PER_MPH : k);
+}
+const speedText = raw => { const v = speedIn(raw); return v === "" ? "" : v+" "+unitLabel(); };
+function renderSelection(){
+  const n = S.sel.size, info = $("selInfo");
+  if(!n){
+    info.className = "note";
+    info.textContent = "Nothing selected. Click a lanelet, shift-click to add more, or drag a box with the left button to take a whole zone.";
+    $("spdVal").value = "";
+    $("spdVal").placeholder = unitLabel();
+  } else {
+    const vals = [...S.sel].map(id => { const l = S.osm.byId.get(id); return l ? speedIn(speedOf(l)) : ""; });
+    const uniq = [...new Set(vals)];
+    const one = uniq.length === 1;
+    info.className = "note ok";
+    info.innerHTML = n === 1
+      ? `<b>${[...S.sel][0]}</b> selected \u2014 speed ${uniq[0] ? uniq[0]+" "+unitLabel() : "unset"}.`
+      : `<b>${n} lanelets</b> selected \u2014 ${one ? (uniq[0] ? "all at "+uniq[0]+" "+unitLabel() : "none set") : uniq.length+" different speeds"}.`;
+    $("spdVal").value = one ? uniq[0] : "";
+    $("spdVal").placeholder = one ? unitLabel() : "mixed \u2014 "+unitLabel();
+  }
+  $("stSel").textContent = n ? String(n) : "\u2014";
+}
+function applySpeed(){
+  if(!S.sel.size){ linkMsg("Select at least one lanelet first."); return; }
+  const raw = $("spdVal").value.trim();
+  if(raw && !/^\d+(\.\d+)?$/.test(raw)){ linkMsg(`Speed must be a number in ${unitLabel()}, or empty to remove the tag.`); return; }
+  const entered = raw ? parseFloat(raw) : null;
+  const kmh = entered === null ? null : (S.unit === "mph" ? entered*KMH_PER_MPH : entered);
+  const stored = kmh === null ? "" : trimNum(kmh);
+  pushHist();
+  for(const id of S.sel) S.speeds.set(id, stored);
+  updatePending(); renderSelection(); renderInspector();
+  const n = S.sel.size, plural = n>1 ? "s" : "";
+  linkMsg(stored
+    ? (S.unit === "mph"
+        ? `${entered} mph set on ${n} lanelet${plural} \u2014 written as ${stored} km/h.`
+        : `Speed limit ${stored} km/h set on ${n} lanelet${plural}.`)
+    : `speed_limit removed from ${n} lanelet${plural}.`);
+}
+$("spdApply").onclick = applySpeed;
+$("spdUnit").onclick = e => {
+  const b = e.target.closest("button"); if(!b) return;
+  const u = b.dataset.u;
+  if(u === S.unit) return;
+  /* keep whatever is in the box meaning the same speed */
+  const cur = parseFloat($("spdVal").value);
+  S.unit = u;
+  [...$("spdUnit").children].forEach(c => c.classList.toggle("on", c === b));
+  if(isFinite(cur)) $("spdVal").value = trimNum(u === "mph" ? cur/KMH_PER_MPH : cur*KMH_PER_MPH);
+  renderSelection(); renderInspector();
+};
+for(const id of ["nwWidth","nwSpeed","nwSub"]) $(id).addEventListener("keydown", e => e.stopPropagation());
+$("spdVal").addEventListener("keydown", e => {
+  e.stopPropagation();
+  if(e.key === "Enter"){ e.preventDefault(); applySpeed(); }
+});
+$("selClear").onclick = () => { S.sel.clear(); S.picked = null; renderSelection(); renderInspector(); invalidate(true); };
+$("selAll").onclick = () => {
+  const o = S.osm; if(!o) return;
+  const x0=px2wx(0), x1=px2wx(W), y0=py2wy(H), y1=py2wy(0);
+  selectInBox([x0,y0,x1,y1], false);
+  invalidate(true);
+};
+
+/* ---- reverse a lanelet's travel direction ----
+   Report what it actually did to the graph: a flip that gains links is a fix,
+   one that loses them is a mistake worth undoing straight away. */
+function snapGraph(){
+  const m = new Map();
+  for(const ll of S.osm.LL) m.set(ll.id, ll.succ.join(",")+"|"+ll.pred.join(","));
+  return m;
+}
+let pendingFlip = null;
+function flipLanelet(id){
+  const o = S.osm, ll = o.byId.get(id);
+  if(!ll) return;
+  /* Reversing a lanelet that is already wired up throws those links away —
+     they were made of shared nodes that no longer line up. Quote the loss and
+     make the user ask twice. */
+  if(!S.flips.has(id) && (ll.succ.length || ll.pred.length)){
+    if(pendingFlip !== id){
+      pendingFlip = id;
+      const bits = [];
+      if(ll.succ.length) bits.push(`next ${ll.succ.join(", ")}`);
+      if(ll.pred.length) bits.push(`previous ${ll.pred.join(", ")}`);
+      linkMsg(`${id} already runs the same way as its neighbours — it has ${bits.join(" and ")}. Reversing it breaks ${ll.succ.length+ll.pred.length} link${ll.succ.length+ll.pred.length>1?"s":""}, and re-linking across the gap afterwards is what drags boundary geometry out of place. Press Reverse again if you are sure, or Esc to drop it.`);
+      renderInspector();
+      return;
+    }
+  }
+  pendingFlip = null;
+  const users = w => o.LL.filter(t => t.wl===w || t.wr===w).map(t => t.id);
+  const shareL = users(ll.wl).filter(t => t!==id), shareR = users(ll.wr).filter(t => t!==id);
+  const before = snapGraph();
+  const nB = ll.succ.length, pB = ll.pred.length;
+  pushHist();
+  if(S.flips.has(id)) S.flips.delete(id); else S.flips.add(id);
+  analyse(); updatePending();
+  const after = snapGraph();
+  const moved = [];
+  for(const [k,v] of after) if(k!==id && before.get(k)!==v){
+    const b = o.byId.get(k);
+    const wasN = (before.get(k)||"|").split("|")[0], wasP = (before.get(k)||"|").split("|")[1];
+    const dn = b.succ.length - (wasN?wasN.split(",").length:0);
+    const dp = b.pred.length - (wasP?wasP.split(",").length:0);
+    moved.push(`${k} ${dn>0?"+"+dn+" next":dn<0?dn+" next":""}${dn&&dp?" ":""}${dp>0?"+"+dp+" prev":dp<0?dp+" prev":""}`.trim());
+  }
+  const nowFlipped = S.flips.has(id);
+  let msg = `${nowFlipped ? "Reversed" : "Restored"} ${id}: next ${nB}\u2192${ll.succ.length}, previous ${pB}\u2192${ll.pred.length}.`;
+  msg += moved.length
+    ? ` ${moved.length} neighbour${moved.length>1?"s":""} changed \u2014 ${moved.slice(0,6).join("; ")}${moved.length>6?"; \u2026":""}.`
+    : " No other lanelet changed.";
+  if(shareL.length || shareR.length)
+    msg += ` Heads up: its bounds are shared with ${[...new Set([...shareL,...shareR])].join(", ")}, so export writes a reversed copy of the shared way rather than turning it under them.`;
+  linkMsg(msg);
+  renderInspector();
+}
+$("btnFlip").onclick = () => { if(S.picked) flipLanelet(S.picked.id); };
+$("btnSwap").onclick = () => {
+  if(!S.picked) return;
+  const id = S.picked.id;
+  pushHist();
+  S.swaps.has(id) ? S.swaps.delete(id) : S.swaps.add(id);
+  analyse(); updatePending();
+  linkMsg(`${id}: left and right boundaries ${S.swaps.has(id) ? "swapped" : "restored"}. Its geometry has not moved — only which edge counts as the left one.`);
+};
+$("btnShape").onclick = () => {
+  S.shape = !S.shape;
+  $("btnShape").classList.toggle("on", S.shape);
+  $("btnShape").innerHTML = S.shape ? "&#9671; Shape: on" : "&#9671; Edit shape";
+  linkMsg(S.shape
+    ? "Drag any boundary vertex to bend the lane. Nodes shared with a neighbouring lanelet move for both, which is what keeps the boundary continuous."
+    : null);
+  invalidate(true);
+};
+
+/* ---- the link editor ---- */
+function chipHtml(id, mine, dir){
+  return `<span class="lchip ${mine?"added":""}" data-id="${id}" data-dir="${dir}">
+    <span class="go">${id}</span><button class="x" title="Remove this link">×</button></span>`;
+}
+function renderInspector(){
+  const ll = S.picked;
+  if(!ll || !S.osm || !S.osm.byId.has(ll.id)){
+    $("inspect").classList.remove("on");
+    $("inspectHint").style.display = "";
+    return;
+  }
+  $("inspect").classList.add("on");
+  $("inspectHint").style.display = "none";
+  $("iId").textContent = ll.id;
+  $("iSub").textContent = ll.subtype;
+  $("iSpeed").textContent = speedText(speedOf(ll)) || "—";
+  $("iBounds").textContent = `L ${ll.wl} · R ${ll.wr}`;
+  const sw = S.swaps.has(ll.id);
+  $("btnSwap").classList.toggle("on", sw);
+  $("btnSwap").innerHTML = sw ? "\u21CB Swapped" : "\u21CB Swap L/R";
+  const fl = S.flips.has(ll.id);
+  $("btnFlip").classList.toggle("on", fl);
+  $("btnFlip").textContent = fl ? "\u21c4 Reversed \u2014 undo flip" : "\u21c4 Reverse direction";
+  $("nNext").textContent = ll.succ.length;
+  $("nPrev").textContent = ll.pred.length;
+  $("chipsNext").innerHTML = ll.succ.length
+    ? ll.succ.map(id => chipHtml(id, hasLink(ll.id,id), "next")).join("")
+    : '<span class="none">no successor</span>';
+  $("chipsPrev").innerHTML = ll.pred.length
+    ? ll.pred.map(id => chipHtml(id, hasLink(id,ll.id), "prev")).join("")
+    : '<span class="none">no predecessor</span>';
+
+  /* Every other lanelet is offerable — nearest first, each labelled with the
+     real joint distance. The gate governs the automatic scan, not what the
+     user is allowed to link by hand. */
+  const o = S.osm;
+  const nx = [], pv = [];
+  for(const other of (o.LLa || o.LL)){
+    if(other === ll) continue;
+    if(!ll.succ.includes(other.id)){ const g = pairGap(ll, other); nx.push({id:other.id, d:g?g.d:Infinity}); }
+    if(!ll.pred.includes(other.id)){ const g = pairGap(other, ll); pv.push({id:other.id, d:g?g.d:Infinity}); }
+  }
+  nx.sort((a,b)=>a.d-b.d); pv.sort((a,b)=>a.d-b.d);
+  const opts = list => list.map(t =>
+    `<option value="${t.id}" label="${isFinite(t.d) ? gapTxt(t.d) : "—"}"></option>`).join("");
+  $("dlNext").innerHTML = opts(nx);
+  $("dlPrev").innerHTML = opts(pv);
+  $("addNextId").value = ""; $("addPrevId").value = "";
+  $("addNextId").classList.remove("bad"); $("addPrevId").classList.remove("bad");
+  showGap("next"); showGap("prev");
+}
+
+/* live read-out under each box as an id is typed */
+function showGap(dir){
+  const inp = $(dir==="next" ? "addNextId" : "addPrevId");
+  const out = $(dir==="next" ? "gapNext" : "gapPrev");
+  const ll = S.picked, v = inp.value.trim();
+  out.className = "gapread";
+  if(!ll || !v){ out.textContent = ""; inp.classList.remove("bad"); return; }
+  const other = S.osm.byId.get(v);
+  if(!other){ out.textContent = "no lanelet with id " + v; inp.classList.add("bad"); return; }
+  inp.classList.remove("bad");
+  if(other === ll){ out.textContent = "that is this lanelet"; inp.classList.add("bad"); return; }
+  const g = dir==="next" ? pairGap(ll, other) : pairGap(other, ll);
+  if(!g){ out.textContent = "endpoints unknown"; return; }
+  const joined = dir==="next" ? ll.succ.includes(v) : ll.pred.includes(v);
+  if(joined){ out.textContent = "already linked"; return; }
+  out.classList.add(g.d <= GATE_MAX ? "in" : "out");
+  out.textContent = `joint gap ${gapTxt(g.d)}` + (g.d <= GATE_MAX ? " — inside gate" : " — will move geometry");
+}
+
+/* What a link would actually disturb. A joint node is usually the endpoint of
+   several boundary ways, because neighbouring lanes share their boundaries, so
+   one merge can drag lines that belong to lanelets nobody asked about. */
+function linkImpact(A, B){
+  const o = S.osm;
+  const nodes = [wayFirst(B.wl), wayFirst(B.wr)];
+  const ways = new Set();
+  for(const [w, nds] of o.wayNds){
+    if(!nds.length) continue;
+    if(nodes.includes(nds[0]) || nodes.includes(nds[nds.length-1])) ways.add(w);
+  }
+  const lanelets = new Set();
+  for(const ll of (o.LLa || o.LL)) if(ways.has(ll.wl) || ways.has(ll.wr)) lanelets.add(ll.id);
+  lanelets.delete(A.id); lanelets.delete(B.id);
+  return {ways:ways.size, others:[...lanelets]};
+}
+/* Manual linking stays ungated — the map may simply be wrong and need it. But a
+   merge past the gate teleports geometry, so it is quoted in full and applied
+   only on a second, deliberate press. */
+let pendingLink = null;
+function linkManual(aId, bId){
+  const o = S.osm, A = o.byId.get(aId), B = o.byId.get(bId);
+  if(!A || !B){ linkMsg(`No lanelet with id ${o.byId.get(aId) ? bId : aId}.`); return false; }
+  if(A === B){ linkMsg("A lanelet cannot follow itself."); return false; }
+  if(A.succ.includes(bId)){ linkMsg(`${aId} → ${bId} already exists.`); return false; }
+  const g = pairGap(A, B);
+  /* They already meet — the only thing wrong is which bound is called "left".
+     Relabel instead of moving anything. */
+  if(g && g.crossed <= GATE_MAX && g.crossed < g.d){
+    pushHist();
+    S.swaps.has(bId) ? S.swaps.delete(bId) : S.swaps.add(bId);
+    addLink(aId, bId);
+    analyse(); updatePending();
+    linkMsg(`${aId} and ${bId} already touch to within ${gapTxt(g.crossed)} — they were only ${gapTxt(g.d)} apart because ${bId}'s left and right boundaries are labelled the other way round. Swapped them and linked. No geometry moved.`);
+    return true;
+  }
+  if(g && g.d > GATE_MAX){
+    const key = aId+">"+bId;
+    if(pendingLink !== key){
+      pendingLink = key;
+      const im = linkImpact(A, B);
+      const lw = (A.hw || 0) * 2;
+      const mult = lw > 0.5 ? g.d/lw : 0;
+      const lanes = Math.round(mult);
+      const laneHint = (lanes >= 1 && Math.abs(mult - lanes) < 0.06)
+        ? ` That is exactly ${lanes} lane width${lanes>1?"s":""} (${lw.toFixed(2)} m each) \u2014 ${bId} is almost certainly the lane ${lanes} over, not the one ahead of ${aId}.`
+        : "";
+      const extra = im.others.length
+        ? ` It also drags ${im.ways} boundary way${im.ways>1?"s":""}, moving ${im.others.length} other lanelet${im.others.length>1?"s":""} that share those nodes (${im.others.slice(0,5).join(", ")}${im.others.length>5?", …":""}).`
+        : ` It moves ${im.ways} boundary way${im.ways>1?"s":""}.`;
+      linkMsg(`${aId} → ${bId} are ${gapTxt(g.d)} apart — far past the ${GATE_MAX.toFixed(2)} m gate.${laneHint} Linking them snaps ${bId}'s start onto ${aId}'s end, so that geometry jumps ${gapTxt(g.d)}.${extra} Press the same button again to do it anyway, or Esc to drop it.`);
+      return false;
+    }
+  }
+  pendingLink = null;
+  pushHist();
+  addLink(aId, bId);
+  analyse(); updatePending();
+  if(g && g.d > GATE_MAX){
+    const im = linkImpact(A, B);
+    linkMsg(`Linked ${aId} → ${bId} across ${gapTxt(g.d)}; ${im.ways} boundary way${im.ways>1?"s":""} moved. Ctrl+Z undoes it.`);
+  } else linkMsg(null);
+  return true;
+}
+/* Pick-from-map: arm a direction, then the next click on a lanelet fills it in
+   and links it. Escape disarms and hands navigation back. */
+function startPicking(dir){
+  if(!S.picked) return;
+  S.picking = dir; S.pickAnchor = S.picked.id; S.hover = null;
+  $("pickTxt").innerHTML = dir === "next"
+    ? `Click the lanelet that <b>follows</b> ${S.picked.id}`
+    : `Click the lanelet that <b>leads into</b> ${S.picked.id}`;
+  $("pickBar").classList.add("on");
+  cvs.classList.add("picking");
+  linkMsg(null);
+}
+function endPicking(){
+  if(!S.picking && !S.hover) return;
+  S.picking = null; S.pickAnchor = null; S.hover = null;
+  $("pickBar").classList.remove("on");
+  cvs.classList.remove("picking");
+  invalidate(true);
+}
+function commitAdd(dir){
+  if(!S.picked) return;
+  const inp = $(dir==="next" ? "addNextId" : "addPrevId");
+  const v = inp.value.trim();
+  if(!v){ startPicking(dir); return; }   // empty box means "let me point at it"
+  const ok = dir==="next" ? linkManual(S.picked.id, v) : linkManual(v, S.picked.id);
+  if(ok) inp.value = "";
+  showGap(dir);
+}
+$("addNextGo").onclick = () => commitAdd("next");
+$("addPrevGo").onclick = () => commitAdd("prev");
+for(const [id,dir] of [["addNextId","next"],["addPrevId","prev"]]){
+  $(id).addEventListener("input", () => showGap(dir));
+  $(id).addEventListener("keydown", e => {
+    if(e.key === "Enter"){ e.preventDefault(); commitAdd(dir); }
+    e.stopPropagation();          // keep arrows and Ctrl+Z out of the map handlers
+  });
+}
+$("inspect").addEventListener("click", e => {
+  const chip = e.target.closest(".lchip"); if(!chip || !S.picked) return;
+  const id = chip.dataset.id, dir = chip.dataset.dir;
+  if(e.target.classList.contains("x")){
+    if(dir === "next") unlink(S.picked.id, id); else unlink(id, S.picked.id);
+    updatePending();
+    return;
+  }
+  const t = S.osm.byId.get(id);
+  if(t){ S.picked = t; renderInspector(); const tv=travel(t); flyTo(tv[0][0], tv[0][1], Math.max(S.view.scale, 8)); }
+});
+
+/* ---- click-to-inspect ---- */
+function pickLanelet(wx, wy, add){
+  const o = S.osm;
+  if(!o || !o.LL.length) return;
+  const best = laneletAt(wx, wy);
+  if(S.picking){
+    const dir = S.picking, anchor = S.pickAnchor;
+    endPicking();
+    const A = S.osm.byId.get(anchor);
+    if(!best){ linkMsg("Nothing there — pick cancelled."); return; }
+    if(A){
+      S.picked = A;
+      const inp = $(dir==="next" ? "addNextId" : "addPrevId");
+      inp.value = best.id;
+      if(dir === "next") linkManual(A.id, best.id); else linkManual(best.id, A.id);
+      renderInspector();
+    }
+    invalidate(true);
+    return;
+  }
+  if(best){
+    if(add){
+      if(S.sel.has(best.id)){                       // shift-click toggles
+        S.sel.delete(best.id);
+        if(S.picked === best) S.picked = S.sel.size ? S.osm.byId.get([...S.sel][S.sel.size-1]) : null;
+      } else { S.sel.add(best.id); S.picked = best; }
+    } else {
+      S.sel.clear(); S.sel.add(best.id); S.picked = best;
+    }
+    linkMsg(null); renderInspector(); renderSelection();
+  } else if(!add){
+    S.sel.clear(); S.picked = null; renderInspector(); renderSelection();
+  }
+  invalidate(true);
+}
+/* world point -> the map's own coordinates, undoing the alignment offset */
+function worldToMap(wx, wy){
+  const o = S.osm, th = -S.off.rot*D2R, cs=Math.cos(th), sn=Math.sin(th);
+  const rx = wx - S.off.dx - o.pivot[0], ry = wy - S.off.dy - o.pivot[1];
+  return [cs*rx - sn*ry + o.pivot[0], sn*rx + cs*ry + o.pivot[1]];
+}
+/* Is the point inside the lane itself? The ring is the left boundary forward
+   then the right boundary back, so containment is exact: lanes do not overlap,
+   which is what keeps neighbouring carriageway lanes apart. */
+function insideLanelet(ll, mx, my){
+  const o = S.osm;
+  /* build the ring from the node lists, so lanelets created in this session —
+     which have no slot in the prebuilt polyline arrays — are pickable too */
+  const L = (o.wayNds.get(ll.wl) || []).map(nodePos).filter(Boolean);
+  const R = (o.wayNds.get(ll.wr) || []).map(nodePos).filter(Boolean);
+  const N = L.length + R.length;
+  if(N < 4) return false;
+  const gx = i => i < L.length ? L[i][0] : R[R.length-1-(i-L.length)][0];
+  const gy = i => i < L.length ? L[i][1] : R[R.length-1-(i-L.length)][1];
+  let inside = false;
+  for(let i=0, j=N-1; i<N; j=i++){
+    const yi = gy(i), yj = gy(j);
+    if((yi > my) !== (yj > my)){
+      const xi = gx(i), xj = gx(j);
+      if(mx < (xj-xi)*(my-yi)/(yj-yi) + xi) inside = !inside;
+    }
+  }
+  return inside;
+}
+/* Click anywhere inside a lane to select it — the whole width is a target, at
+   any zoom. Only if the click lands outside every lane does it fall back to
+   the nearest centreline within a few pixels, for thin or very short ones. */
+const PICK_PX = 8;
+function laneletAt(wx, wy){
+  const o = S.osm;
+  if(!o || !o.LL.length) return null;
+  const m = worldToMap(wx, wy), mx = m[0], my = m[1];
+  const slack = PICK_PX/Math.max(S.view.scale, 1e-4);
+  const lim = slack*slack;
+  let hit=null, hd=Infinity, near=null, nd=Infinity;
+  for(const ll of (o.LLa || o.LL)){
+    const b = ll.box;
+    if(mx < b[0]-slack || mx > b[2]+slack || my < b[1]-slack || my > b[3]+slack) continue;
+    let d = Infinity;
+    for(let i=0;i<ll.cx.length;i++){
+      const q = (ll.cx[i]-mx)**2 + (ll.cy[i]-my)**2;
+      if(q < d) d = q;
+    }
+    if(mx >= b[0] && mx <= b[2] && my >= b[1] && my <= b[3] && insideLanelet(ll, mx, my)){
+      if(d < hd){ hd = d; hit = ll; }      // nearest centreline breaks any overlap
+    } else if(d < lim && d < nd){ nd = d; near = ll; }
+  }
+  return hit || near;
+}
+/* ---- shape editing: the boundary vertices of the selected lanelet ---- */
+function shapeNodes(){
+  const ll = S.picked, o = S.osm;
+  if(!S.shape || !ll || !o || !o.byId.has(ll.id)) return [];
+  const out = [];
+  for(const w of [ll.wl, ll.wr]){
+    const nds = o.wayNds.get(w) || [];
+    for(const n of nds){
+      const p = nodePos(n);
+      if(p) out.push({id:n, x:p[0], y:p[1]});
+    }
+  }
+  return out;
+}
+function handleAt(wx, wy){
+  const m = worldToMap(wx, wy);
+  const r = 9/Math.max(S.view.scale, 1e-4), lim = r*r;
+  let best=null, bd=lim;
+  for(const h of shapeNodes()){
+    const d = (h.x-m[0])**2 + (h.y-m[1])**2;
+    if(d < bd){ bd=d; best=h; }
+  }
+  return best;
+}
+function moveHandle(id, wx, wy){
+  const m = worldToMap(wx, wy);
+  S.movedEver.add(id);
+  S.moves.set(id, [m[0], m[1]]);
+  analyse();
+  updatePending();
+}
+/* every lanelet with a centreline point inside the rubber band */
+function selectInBox(box, add){
+  const o = S.osm;
+  if(!o) return;
+  const a = worldToMap(box[0], box[1]), b = worldToMap(box[2], box[3]);
+  const x0=Math.min(a[0],b[0]), x1=Math.max(a[0],b[0]);
+  const y0=Math.min(a[1],b[1]), y1=Math.max(a[1],b[1]);
+  if(!add) S.sel.clear();
+  for(const ll of (o.LLa || o.LL)){
+    if(ll.box[2] < x0 || ll.box[0] > x1 || ll.box[3] < y0 || ll.box[1] > y1) continue;
+    for(let i=0;i<ll.cx.length;i++){
+      if(ll.cx[i]>=x0 && ll.cx[i]<=x1 && ll.cy[i]>=y0 && ll.cy[i]<=y1){ S.sel.add(ll.id); break; }
+    }
+  }
+  if(S.sel.size && (!S.picked || !S.sel.has(S.picked.id)))
+    S.picked = o.byId.get([...S.sel][S.sel.size-1]) || S.picked;
+  renderSelection();
+}
+
+/* ===================================================== export */
+function buildCorrectedOsm(){
+  const o = S.osm;
+  const th = S.off.rot*D2R, cs=Math.cos(th), sn=Math.sin(th);
+  const pvx=o.pivot[0], pvy=o.pivot[1], dx=S.off.dx, dy=S.off.dy;
+  const kLat=o.kLat, kLon=o.kLon;
+
+  /* pass 1 — geometry. Nodes a detach cloned are captured here, already
+     shifted, so the copies inherit every tag of their source. */
+  const cloneOf = new Map();                 // source id -> [new ids]
+  for(const c of S.edit.newNodes){
+    if(!cloneOf.has(c.src)) cloneOf.set(c.src, []);
+    cloneOf.get(c.src).push(c.id);
+  }
+  const extraNodes = [];
+  RE_NODE.lastIndex = 0;
+  let out = o.raw.replace(RE_NODE, block => {
+    const id = cap(block, RE_ID); if(id===null) return block;
+    const slot = o.idx.get(id); if(slot===undefined) return block;
+    const x=o.NX[slot], y=o.NY[slot];
+    if(!isFinite(x)||!isFinite(y)) return block;
+    const rx=x-pvx, ry=y-pvy;
+    const nx = cs*rx - sn*ry + pvx + dx, ny = sn*rx + cs*ry + pvy + dy;
+    /* measure against the file's own geometry, so a dragged vertex moves
+       lat/lon by the same amount it moved local_x/local_y */
+    const ox = (o.NX0 && slot < o.baseNodes) ? o.NX0[slot] : x;
+    const oy = (o.NY0 && slot < o.baseNodes) ? o.NY0[slot] : y;
+    const mdx = nx-ox, mdy = ny-oy;
+    let b = block;
+    const lat = parseFloat(cap(block, RE_LAT)), lon = parseFloat(cap(block, RE_LON));
+    if(isFinite(lat)) b = b.replace(RE_LAT, 'lat="' + (lat + mdy/kLat).toFixed(11) + '"');
+    if(isFinite(lon)) b = b.replace(RE_LON, 'lon="' + (lon + mdx/kLon).toFixed(11) + '"');
+    b = b.replace(RE_LXW, (s,p) => p + nx.toFixed(4) + '"');
+    b = b.replace(RE_LYW, (s,p) => p + ny.toFixed(4) + '"');
+    const twins = cloneOf.get(id);
+    if(twins) for(const t of twins) extraNodes.push(b.replace(RE_ID, 'id="'+t+'"'));
+    return b;
+  });
+  if(extraNodes.length){
+    const at = out.search(/^[ \t]*<way\b/m);
+    const blob = extraNodes.join("\n") + "\n";
+    out = at < 0 ? out.replace(/([ \t]*)<\/osm>/, blob+"$1</osm>") : out.slice(0,at) + blob + out.slice(at);
+  }
+
+  /* pass 2 — routing: rewrite the first and last <nd> of every way the edits touched */
+  if(S.edit.first.size || S.edit.last.size){
+    RE_WAY.lastIndex = 0;
+    out = out.replace(RE_WAY, block => {
+      const id = cap(block, RE_ID); if(id===null) return block;
+      const f = S.edit.first.get(id), l = S.edit.last.get(id);
+      if(f===undefined && l===undefined) return block;
+      const total = o.wayNds.get(id).length;
+      let i = 0;
+      return block.replace(/(<nd\b[^>]*\bref=")(-?\d+)(")/g, (s,p1,p2,p3) => {
+        const k = i++;
+        if(k===0 && f!==undefined) return p1+f+p3;
+        if(k===total-1 && l!==undefined) return p1+l+p3;
+        return s;
+      });
+    });
+  }
+
+  /* pass 2b — reversed lanelets. A way is turned in place only when every
+     lanelet using it is reversed; where some are and some are not, the flipped
+     ones get their own reversed copy so the others keep their direction. */
+  const wayCopy = new Map();                       // way id -> reversed copy id
+  if(S.flips.size || S.swaps.size){
+    const usersOf = new Map();
+    for(const ll of (o.LLa || o.LL)){
+      for(const w of [ll.wl, ll.wr]){
+        if(!usersOf.has(w)) usersOf.set(w, []);
+        usersOf.get(w).push(ll);
+      }
+    }
+    const effective = w => {
+      const a = o.wayNds.get(w).slice();
+      const f = S.edit.first.get(w), l = S.edit.last.get(w);
+      if(f!==undefined) a[0] = f;
+      if(l!==undefined) a[a.length-1] = l;
+      return a;
+    };
+    const turnInPlace = new Set(), needCopy = new Set();
+    for(const [w, users] of usersOf){
+      const fl = users.filter(t => S.flips.has(t.id)).length;
+      if(fl === 0) continue;
+      if(fl === users.length) turnInPlace.add(w); else needCopy.add(w);
+    }
+    let newWays = [];
+    for(const w of needCopy){
+      const id = String(o.nextId++);
+      wayCopy.set(w, id);
+      newWays.push('  <way id="'+id+'" version="1">\n'
+        + effective(w).slice().reverse().map(n => '    <nd ref="'+n+'"/>').join("\n")
+        + '\n  </way>');
+    }
+    if(turnInPlace.size){
+      RE_WAY.lastIndex = 0;
+      out = out.replace(RE_WAY, block => {
+        const id = cap(block, RE_ID);
+        if(id===null || !turnInPlace.has(id)) return block;
+        const rev = effective(id).slice().reverse();
+        let i = 0;
+        return block.replace(/(<nd\b[^>]*\bref=")(-?\d+)(")/g, (t,p1,p2,p3) => p1 + rev[i++] + p3);
+      });
+    }
+    if(newWays.length){
+      const at = out.search(/^[ \t]*<relation\b/m);
+      const blob = newWays.join("\n") + "\n";
+      out = at < 0 ? out.replace(/([ \t]*)<\/osm>/, blob+"$1</osm>") : out.slice(0,at) + blob + out.slice(at);
+    }
+    /* swap the left and right roles on every reversed lanelet */
+    RE_REL.lastIndex = 0;
+    out = out.replace(RE_REL, block => {
+      if(tagOf(block,"type") !== "lanelet") return block;
+      const id = cap(block, RE_ID);
+      /* a flip and a mirror each swap the roles once, so together they cancel */
+      if(id===null || (S.flips.has(id) === S.swaps.has(id))) return block;
+      const ll = o.byId.get(id); if(!ll) return block;
+      return block.replace(/<member\b[^>]*\/>/g, mem => {
+        const role = /\brole="(\w+)"/.exec(mem), ref = /\bref="(-?\d+)"/.exec(mem);
+        if(!role || !ref) return mem;
+        if(role[1] !== "left" && role[1] !== "right") return mem;
+        const other = role[1] === "left" ? "right" : "left";
+        const src = role[1] === "left" ? ll.wl : ll.wr;
+        const tgt = wayCopy.get(src) || src;
+        return mem.replace(/\brole="\w+"/, 'role="'+other+'"').replace(/\bref="-?\d+"/, 'ref="'+tgt+'"');
+      });
+    });
+  }
+
+  /* pass 2c — speed limits */
+  if(S.speeds.size){
+    RE_REL.lastIndex = 0;
+    out = out.replace(RE_REL, block => {
+      if(tagOf(block,"type") !== "lanelet") return block;
+      const id = cap(block, RE_ID);
+      if(id===null || !S.speeds.has(id)) return block;
+      const v = S.speeds.get(id);
+      const stripped = block.replace(/[ \t]*<tag\b[^>]*\bk="speed_limit"[^>]*\/>\r?\n?/g, "");
+      if(!v) return stripped;
+      return stripped.replace(/([ \t]*)<\/relation>/, (m,ind) => '    <tag k="speed_limit" v="'+v+'"/>\n'+ind+'</relation>');
+    });
+  }
+
+  /* pass 2e — lanelets deleted in this session: drop their relations */
+  if(S.deleted.size){
+    RE_REL.lastIndex = 0;
+    out = out.replace(RE_REL, block => {
+      if(tagOf(block,"type") !== "lanelet") return block;
+      const id = cap(block, RE_ID);
+      return (id !== null && S.deleted.has(id)) ? "" : block;
+    });
+  }
+
+  /* pass 2f — lanelets drawn in this session: their nodes, ways and relation */
+  {
+    const live = S.created.filter(c => !S.deleted.has(c.id));
+    if(live.length){
+      let ref = -1;
+      for(let i=0;i<o.baseNodes;i++){
+        if(isFinite(o.NX0[i]) && o.LAT && o.LAT[i] !== null && isFinite(o.LAT[i])){ ref = i; break; }
+      }
+      if(ref >= 0){
+        const rx=o.NX0[ref], ry=o.NY0[ref], rlat=o.LAT[ref], rlon=o.LON[ref];
+        const nodesXml=[], waysXml=[], relsXml=[];
+        const seen = new Set();
+        const emitNode = nid => {
+          if(seen.has(nid)) return;
+          seen.add(nid);
+          const sl = o.idx.get(nid);
+          if(sl === undefined) return;
+          const x=o.NX[sl], y=o.NY[sl];
+          const px = cs*(x-pvx) - sn*(y-pvy) + pvx + dx;
+          const py = sn*(x-pvx) + cs*(y-pvy) + pvy + dy;
+          const lat = rlat + (py-ry)/kLat, lon = rlon + (px-rx)/kLon;
+          nodesXml.push('  <node id="'+nid+'" lat="'+lat.toFixed(11)+'" lon="'+lon.toFixed(11)+'" version="1">\n'
+            + '    <tag k="local_x" v="'+px.toFixed(4)+'"/>\n'
+            + '    <tag k="local_y" v="'+py.toFixed(4)+'"/>\n'
+            + '    <tag k="ele" v="0"/>\n  </node>');
+        };
+        for(const c of live){
+          const ll = o.byId.get(c.id); if(!ll) continue;
+          for(const w of [c.wl, c.wr]){
+            const nds = o.wayNds.get(w) || [];
+            nds.forEach(emitNode);
+            waysXml.push('  <way id="'+w+'" version="1">\n'
+              + nds.map(v => '    <nd ref="'+v+'"/>').join("\n")
+              + '\n    <tag k="type" v="line_thin"/>\n    <tag k="subtype" v="solid"/>\n  </way>');
+          }
+          const sp = speedOf(ll);
+          relsXml.push('  <relation id="'+c.id+'" version="1">\n'
+            + '    <member type="way" role="left" ref="'+(S.flips.has(c.id)!==S.swaps.has(c.id) ? c.wr : c.wl)+'"/>\n'
+            + '    <member type="way" role="right" ref="'+(S.flips.has(c.id)!==S.swaps.has(c.id) ? c.wl : c.wr)+'"/>\n'
+            + '    <tag k="type" v="lanelet"/>\n'
+            + '    <tag k="subtype" v="'+(ll.subtype||"road")+'"/>\n'
+            + (sp ? '    <tag k="speed_limit" v="'+sp+'"/>\n' : '')
+            + '    <tag k="location" v="urban"/>\n'
+            + '    <tag k="one_way" v="yes"/>\n'
+            + '    <tag k="participant:vehicle" v="yes"/>\n  </relation>');
+        }
+        const before = (text, re, blob) => {
+          const at = text.search(re);
+          return at < 0 ? text.replace(/([ \t]*)<\/osm>/, blob+"$1</osm>") : text.slice(0,at)+blob+text.slice(at);
+        };
+        if(nodesXml.length) out = before(out, /^[ \t]*<way\b/m, nodesXml.join("\n")+"\n");
+        if(waysXml.length)  out = before(out, /^[ \t]*<relation\b/m, waysXml.join("\n")+"\n");
+        if(relsXml.length)  out = out.replace(/([ \t]*)<\/osm>/, relsXml.join("\n")+"\n$1</osm>");
+      }
+    }
+  }
+
+  /* pass 3 — optional next/previous tags on lanelet relations */
+  if($("chkTags").checked){
+    RE_REL.lastIndex = 0;
+    out = out.replace(RE_REL, block => {
+      if(tagOf(block,"type") !== "lanelet") return block;
+      const id = cap(block, RE_ID);
+      const ll = id===null ? null : o.byId.get(id);
+      if(!ll) return block;
+      let b = block.replace(/[ \t]*<tag\b[^>]*\bk="(?:next|previous)"[^>]*\/>\r?\n?/g, "");
+      const add = [];
+      if(ll.succ.length) add.push(`    <tag k="next" v="${ll.succ.join(";")}"/>`);
+      if(ll.pred.length) add.push(`    <tag k="previous" v="${ll.pred.join(";")}"/>`);
+      if(!add.length) return b;
+      return b.replace(/([ \t]*)<\/relation>/, (s,ind) => add.join("\n") + "\n" + ind + "</relation>");
+    });
+  }
+  return out;
+}
+
+function saveFile(name, text){
+  const blob = new Blob([text], {type:"application/xml"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+$("btnExport").onclick = async () => {
+  const b = $("btnExport");
+  b.disabled = true;
+  const label = b.textContent;
+  b.textContent = "Rewriting…";
+  try {
+    await yield_();
+    const text = buildCorrectedOsm();
+    saveFile(S.osm.name.replace(/\.osm$/i,"") + "_corrected.osm", text);
+    b.textContent = "Exported ✓";
+    setTimeout(() => { b.textContent = label; }, 2600);
+  } catch(err){
+    b.textContent = label;
+    const n = $("fitNote");
+    n.className = "note warn";
+    n.textContent = "Export failed: " + err.message;
+  }
+  b.disabled = false;
+};
+
+/* ===================================================== file wiring */
+function bindSlot(slotId, inputId, handler){
+  const slot = $(slotId), input = $(inputId);
+  input.addEventListener("change", () => { if(input.files[0]) handler(input.files[0]); });
+  ["dragenter","dragover"].forEach(ev => slot.addEventListener(ev, e => { e.preventDefault(); slot.classList.add("over"); }));
+  ["dragleave","drop"].forEach(ev => slot.addEventListener(ev, e => { e.preventDefault(); slot.classList.remove("over"); }));
+  slot.addEventListener("drop", e => { const f=e.dataTransfer.files[0]; if(f) handler(f); });
+}
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("drop", e => {
+  e.preventDefault();
+  for(const f of e.dataTransfer.files){
+    if(/\.pcd$/i.test(f.name)) handlePcd(f);
+    else if(/\.(osm|xml)$/i.test(f.name)) handleOsm(f);
+  }
+});
+
+function updateModeChip(){
+  const pd = !S.pcd || S.pcd.demo, od = !S.osm || S.osm.demo;
+  const chip = $("modeChip");
+  if(!pd && !od){ chip.className="chip live"; chip.textContent="Live data"; }
+  else if(!pd){ chip.className="chip demo"; chip.textContent="Cloud loaded — now open the .osm"; }
+  else if(!od){ chip.className="chip demo"; chip.textContent="Map loaded — now open the .pcd"; }
+  else { chip.className="chip demo"; chip.textContent="Demo scene — load your own files"; }
+}
+function dropDemoOsm(){
+  if(S.osm && S.osm.demo){
+    S.osm=null; S.picked=null; S.sel.clear(); S.moves.clear(); S.movedEver.clear(); S.speeds.clear(); S.flips.clear(); S.links.length=0; S.cuts.length=0; CANDS=[];
+    $("osmName").textContent="No vector map";
+    $("osmMeta").textContent="Click to load a lanelet2 .osm";
+    $("pivotTxt").textContent=""; $("stLL").textContent="—";
+    $("btnExport").disabled=true;
+    renderHealth(0,0,0); renderCands(); updatePending();
+  }
+}
+function dropDemoPcd(){
+  if(S.pcd && S.pcd.demo){
+    S.pcd=null;
+    $("pcdName").textContent="No point cloud";
+    $("pcdMeta").textContent="Click to load a .pcd";
+    $("stPts").textContent="—";
+  }
+}
+
+let busy = false;
+async function handlePcd(file){
+  if(busy) return; busy=true;
+  try {
+    const wasDemo = !S.pcd || S.pcd.demo;
+    await loadPcd(file);
+    dropDemoOsm();
+    $("pcdName").textContent = file.name;
+    const p=S.pcd, b=p.bbox;
+    $("pcdMeta").textContent =
+      `${fmt(p.total)} pts · showing ${fmt(p.n)} (1:${p.stride})\n` +
+      `x ${b[0].toFixed(1)} … ${b[2].toFixed(1)} m\n` +
+      `y ${b[1].toFixed(1)} … ${b[3].toFixed(1)} m`;
+    $("stPts").textContent = fmt(p.n);
+    updateModeChip();
+    if(wasDemo) requestFit(unionBox());
+    invalidateAll();
+  } catch(err){
+    $("pcdMeta").textContent = "⚠ " + err.message;
+    progDone();
+  }
+  busy=false;
+}
+async function handleOsm(file){
+  if(busy) return; busy=true;
+  try {
+    const wasDemo = !S.osm || S.osm.demo;
+    S.flips.clear(); S.swaps.clear(); S.speeds.clear(); S.moves.clear(); S.sel.clear(); S.links.length=0; S.cuts.length=0; S.picked=null; S.hiCand=null; linkMsg(null);
+    await loadOsm(file);
+    dropDemoPcd();
+    const o=S.osm, b=o.bbox;
+    $("osmName").textContent = file.name;
+    $("osmMeta").textContent =
+      `${fmt(o.nodeCount)} nodes · ${fmt(o.wayCount)} ways · ${fmt(o.LL.length)} lanelets\n` +
+      `x ${b[0].toFixed(1)} … ${b[2].toFixed(1)} m\n` +
+      `y ${b[1].toFixed(1)} … ${b[3].toFixed(1)} m`;
+    $("pivotTxt").textContent = `(${o.pivot[0].toFixed(0)}, ${o.pivot[1].toFixed(0)})`;
+    $("btnExport").disabled = false;
+
+    const note = $("fitNote");
+    if(!o.hasLocal){
+      note.className = "note warn";
+      note.innerHTML = `No <b>local_x/local_y</b> tags — geometry projected from lat/lon at ${o.kLat.toFixed(0)}&nbsp;m/deg&nbsp;lat, ${o.kLon.toFixed(0)}&nbsp;m/deg&nbsp;lon. Export rewrites lat/lon only.`;
+    } else if(o.fitted && o.fitRms !== null && o.fitRms < 0.5){
+      note.className = "note ok";
+      note.innerHTML = `Projection solved from the file: <b>${o.kLat.toFixed(2)}</b> m/deg lat, <b>${o.kLon.toFixed(2)}</b> m/deg lon (residual ${(o.fitRms*100).toFixed(1)} cm).`;
+    } else if(o.fitted){
+      note.className = "note warn";
+      note.innerHTML = `lat/lon and local_x/local_y disagree by up to <b>${o.fitRms.toFixed(2)} m</b> here. Both are still rewritten together — check which one your pipeline trusts.`;
+    } else {
+      note.className = "note warn";
+      note.textContent = "Could not solve the lat/lon ↔ local_x/y relation; using WGS84 defaults.";
+    }
+    updateModeChip(); updatePending(); analyse();
+    if(wasDemo) requestFit(unionBox());
+    invalidateAll();
+  } catch(err){
+    $("osmMeta").textContent = "⚠ " + err.message;
+    progDone();
+  }
+  busy=false;
+}
+bindSlot("slotPcd","filePcd",handlePcd);
+bindSlot("slotOsm","fileOsm",handleOsm);
+
+/* ===================================================== demo scene */
+function makeDemo(){
+  const N = 240000, xyz = new Float32Array(N*3);
+  const centre = s => {
+    const y = 26*Math.sin(s/62) + 0.0016*s*s - 10;
+    const t = 26*Math.cos(s/62)/62 + 0.0032*s;
+    const h = Math.hypot(1,t);
+    return [s, y, 1/h, t/h];
+  };
+  let k = 0;
+  const put = (x,y,z) => { xyz[k*3]=x; xyz[k*3+1]=y; xyz[k*3+2]=z; k++; };
+  for(let i=0;i<N && k<N;i++){
+    const s = Math.random()*260;
+    const c = centre(s), nx = -c[3], ny = c[2];
+    const r = Math.random();
+    if(r < 0.72){ const off=(Math.random()*2-1)*7.2; put(c[0]+nx*off, c[1]+ny*off, 0.02+Math.random()*0.05); }
+    else if(r < 0.90){ const sd=Math.random()<0.5?-1:1, off=sd*(7.4+Math.random()*2.6); put(c[0]+nx*off, c[1]+ny*off, 0.12+Math.random()*0.55); }
+    else if(r < 0.985){ const sd=Math.random()<0.5?-1:1, off=sd*(11+Math.random()*7); put(c[0]+nx*off, c[1]+ny*off, 0.4+Math.random()*Math.random()*8.5); }
+    else {
+      const sd=Math.random()<0.5?-1:1, sp=Math.round(s/40)*40, p=centre(sp);
+      put(p[0]-p[3]*sd*8.2+(Math.random()-0.5)*0.16, p[1]+p[2]*sd*8.2+(Math.random()-0.5)*0.16, Math.random()*6.2);
+    }
+  }
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(let i=0;i<k;i++){ const x=xyz[i*3], y=xyz[i*3+1];
+    if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+  S.pcd = {xyz:xyz.subarray(0,k*3), n:k, zLo:0, zHi:6.5, bbox:[x0,y0,x1,y1], total:k, name:"demo", stride:1, demo:true};
+
+  /* four lanelets in a chain plus one stranded, misregistered by (+7.4,-4.1) m and 1.4 deg.
+     The 3rd -> 4th joint is left 0.35 m open so the repair scanner has something real to find. */
+  const EDX=7.4, EDY=-4.1, EROT=1.4*D2R;
+  const warp = (x,y) => {
+    const rx=x-130, ry=y-6;
+    return [Math.cos(EROT)*rx - Math.sin(EROT)*ry + 130 + EDX, Math.sin(EROT)*rx + Math.cos(EROT)*ry + 6 + EDY];
+  };
+  const NXa=[], NYa=[], idx=new Map(); let nid=1;
+  const addNode = (x,y) => { const p=warp(x,y); idx.set(String(nid), NXa.length); NXa.push(p[0]); NYa.push(p[1]); return String(nid++); };
+  const wayNds = new Map(); let wid = 1000;
+  const addWay = (s0,s1,off) => {
+    const ids=[];
+    for(let s=s0; s<=s1+1e-6; s+=6){
+      const c = centre(s);
+      ids.push(addNode(c[0]-c[3]*off, c[1]+c[2]*off));
+    }
+    const id = String(wid++); wayNds.set(id, ids); return id;
+  };
+  const P = n => { const s=idx.get(n); return s===undefined ? null : [NXa[s],NYa[s]]; };
+  const LL=[], byId=new Map();
+  const spans = [[0,60],[60,120],[120,180],[180.35,240]];   // note the 0.35 m break before the last
+  spans.forEach((sp,i) => {
+    const wl = addWay(sp[0], sp[1], -3.5), wr = addWay(sp[0], sp[1], 3.5);
+    const nl = wayNds.get(wl), nr = wayNds.get(wr);
+    const cl = centreline(nl, nr, P);
+    const ll = {id:"L"+(i+1), wl, wr, nl, nr, subtype:"road", speed:"50", cx:cl.cx, cy:cl.cy, box:cl.box, hw:cl.hw, succ:[], pred:[], st:2};
+    LL.push(ll); byId.set(ll.id, ll);
+  });
+  /* chain the first three by sharing node ids */
+  for(let i=1;i<3;i++){
+    const A=LL[i-1], B=LL[i];
+    B.nl[0] = A.nl[A.nl.length-1];
+    B.nr[0] = A.nr[A.nr.length-1];
+    wayNds.set(B.wl, B.nl); wayNds.set(B.wr, B.nr);
+  }
+  /* one stranded lanelet parked off the carriageway */
+  {
+    const wl=addWay(30,70,-26), wr=addWay(30,70,-19);
+    const nl=wayNds.get(wl), nr=wayNds.get(wr), cl=centreline(nl,nr,P);
+    const ll={id:"L5", wl, wr, nl, nr, subtype:"road", speed:"30", cx:cl.cx, cy:cl.cy, box:cl.box, hw:cl.hw, succ:[], pred:[], st:2};
+    LL.push(ll); byId.set(ll.id, ll);
+  }
+
+  const PX=[], PY=[], st=[], ln=[], bx=[], wayPoly=new Map();
+  for(const [wayId, nds] of wayNds){
+    const s=PX.length; let b0=Infinity,b1=Infinity,b2=-Infinity,b3=-Infinity,c=0;
+    for(const n of nds){ const p=P(n); if(!p) continue; PX.push(p[0]); PY.push(p[1]); c++;
+      if(p[0]<b0)b0=p[0]; if(p[0]>b2)b2=p[0]; if(p[1]<b1)b1=p[1]; if(p[1]>b3)b3=p[1]; }
+    if(c<2){ PX.length=s; PY.length=s; continue; }
+    st.push(s); ln.push(c); bx.push(b0,b1,b2,b3); wayPoly.set(wayId,{s, n:c});
+  }
+  let ox0=Infinity,oy0=Infinity,ox1=-Infinity,oy1=-Infinity;
+  for(let i=0;i<PX.length;i++){ if(PX[i]<ox0)ox0=PX[i]; if(PX[i]>ox1)ox1=PX[i];
+    if(PY[i]<oy0)oy0=PY[i]; if(PY[i]>oy1)oy1=PY[i]; }
+
+  S.osm = {
+    raw:null, name:"demo", demo:true,
+    polyX:Float32Array.from(PX), polyY:Float32Array.from(PY),
+    polyX0:Float32Array.from(PX), polyY0:Float32Array.from(PY),
+    pStart:Int32Array.from(st), pLen:Int32Array.from(ln), pBox:Float64Array.from(bx),
+    bbox:[ox0,oy0,ox1,oy1], pivot:[(ox0+ox1)/2,(oy0+oy1)/2],
+    kLat:111132, kLon:111320, fitRms:null, fitted:false,
+    nodeCount:NXa.length, wayCount:st.length, hasLocal:true,
+    idx, NX:NXa, NY:NYa, wayNds, wayPoly, LL, byId, P,
+    wayLanelets:(()=>{const m=new Map();for(const ll of LL){for(const w of [ll.wl,ll.wr]){let a=m.get(w);if(!a){a=[];m.set(w,a);}a.push(ll);}}return m;})(),
+    wayIndex:(()=>{const m=new Map();let i=0;for(const w of wayNds.keys()){if(wayPoly.has(w))m.set(w,i++);}return m;})(),
+    NX0:NXa.slice(), NY0:NYa.slice(), nodeWays:(()=>{const m=new Map();for(const [w,nd] of wayNds){for(const n of nd){let a=m.get(n);if(!a){a=[];m.set(n,a);}if(a[a.length-1]!==w)a.push(w);}}return m;})(),
+    baseNodes:NXa.length, baseNextId:wid+1, nextId:wid+1,
+  };
+  $("pcdMeta").textContent = `${fmt(k)} synthetic pts\nClick to load a .pcd`;
+  $("osmMeta").textContent = `${fmt(NXa.length)} nodes · ${st.length} ways · ${LL.length} lanelets\nClick to load a lanelet2 .osm`;
+  $("stPts").textContent = fmt(k);
+  $("pivotTxt").textContent = `(${S.osm.pivot[0].toFixed(0)}, ${S.osm.pivot[1].toFixed(0)})`;
+}
+
+/* ===================================================== go */
+initTheme();
+makeDemo();
+resize();
+requestFit(unionBox(), 0.88);
+analyse();
+updatePending();
+updateHistUI();
+renderSelection();
+requestAnimationFrame(tick);
+</script>

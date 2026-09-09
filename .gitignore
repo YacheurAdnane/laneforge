@@ -1,0 +1,10 @@
+# maps and clouds are large — keep them out of the repo
+*.pcd
+*.osm
+
+# editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
